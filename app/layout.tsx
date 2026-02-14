@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 
+
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
@@ -32,3 +33,4 @@ export default function RootLayout({ children }: RootLayoutProps) {
     </ClerkProvider>
   );
 }
+
