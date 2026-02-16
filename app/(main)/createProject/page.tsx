@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import CreateProject from "./components/CreateProject";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-const CreateProjectPage = () => {
+const CreateProjectContent = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const workspaceName = searchParams.get("name") || "Workspace";
+  const workspaceId = searchParams.get("workspaceId");
   const [isOpen, setIsOpen] = useState(true);
 
   const handleClose = () => {
@@ -13,26 +16,29 @@ const CreateProjectPage = () => {
     router.back();
   };
 
-  const handleCreate = (data: {
-    title: string;
-    description: string;
-    privacy: string;
-    automation: boolean;
-  }) => {
-    console.log("Create project:", data);
-    // TODO: Implement project creation logic
+  const handleCreate = (project: any) => {
     setIsOpen(false);
+    // Redirect back to the workspace after creation
+    router.push(`/workspace/${workspaceId}`);
   };
 
   return (
+    <CreateProject
+      isOpen={isOpen}
+      onClose={handleClose}
+      onCreate={handleCreate}
+      workspaceName={workspaceName}
+      workspaceId={workspaceId}
+    />
+  );
+};
+
+const CreateProjectPage = () => {
+  return (
     <main>
-      {isOpen && (
-        <CreateProject
-          isOpen={isOpen}
-          onClose={handleClose}
-          onCreate={handleCreate}
-        />
-      )}
+      <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#0f172a] text-white">Loading...</div>}>
+        <CreateProjectContent />
+      </Suspense>
     </main>
   );
 };

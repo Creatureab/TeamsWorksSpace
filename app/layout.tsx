@@ -3,7 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
-
+import { Toaster } from "@/components/ui/sonner";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -28,9 +28,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
           style={{ backgroundColor: "#ffffff" }}
         >
           {children}
+          <Toaster />
         </body>
       </html>
     </ClerkProvider>
   );
 }
-

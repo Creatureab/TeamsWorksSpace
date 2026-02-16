@@ -1,7 +1,19 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Link2, MailPlus, Trash2 } from "lucide-react";
+import { CheckCircle2, Link2, MailPlus, Trash2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 type Role = "Member" | "Admin" | "Viewer";
 
@@ -29,14 +41,10 @@ const getInitials = (email: string) => {
   return (cleaned.slice(0, 2) || "NA").toUpperCase();
 };
 
-const getRoleStyles = (role: Role) => {
-  if (role === "Admin") {
-    return "bg-[#1f3565] text-[#79a8ff]";
-  }
-  if (role === "Viewer") {
-    return "bg-[#24304a] text-[#9aa9c4]";
-  }
-  return "bg-[#2b3855] text-[#b6c9ee]";
+const getRoleBadgeVariant = (role: Role) => {
+  if (role === "Admin") return "destructive";
+  if (role === "Viewer") return "secondary";
+  return "outline";
 };
 
 const InvitesPage = ({ workspaceId, onClose, onSubmit }: InvitesPageProps) => {
@@ -46,7 +54,6 @@ const InvitesPage = ({ workspaceId, onClose, onSubmit }: InvitesPageProps) => {
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>(
     initialPendingInvites
   );
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
   const parsedInputEmails = useMemo(() => {
@@ -56,14 +63,6 @@ const InvitesPage = ({ workspaceId, onClose, onSubmit }: InvitesPageProps) => {
       .filter(Boolean);
   }, [emailInput]);
 
-  useEffect(() => {
-    if (!toastMessage) {
-      return;
-    }
-
-    const timeout = setTimeout(() => setToastMessage(null), 2800);
-    return () => clearTimeout(timeout);
-  }, [toastMessage]);
 
   const addEmails = (rawEmails: string[]) => {
     if (rawEmails.length === 0) {
@@ -113,31 +112,27 @@ const InvitesPage = ({ workspaceId, onClose, onSubmit }: InvitesPageProps) => {
         }));
 
         setPendingInvites(newInvitesFromBackend);
-        setToastMessage(
-          `Invites sent successfully to ${emails.length} recipient${emails.length > 1 ? "s" : ""
-          }`
-        );
+        toast.success(`Invites sent to ${emails.length} recipients`);
         setEmails([]);
         setEmailInput("");
       } else {
         const errorText = await response.text();
-        console.error("Failed to send invites:", errorText);
-        setToastMessage(`Error: ${errorText}`);
+        toast.error(`Error: ${errorText}`);
       }
     } catch (error) {
-      console.error("Send invites error:", error);
-      setToastMessage("Failed to send invites");
+      toast.error("Failed to send invites");
     } finally {
       setIsSending(false);
     }
   };
 
   const resendInvite = (email: string) => {
-    setToastMessage(`Invite resent to ${email}`);
+    toast.success(`Invite resent to ${email}`);
   };
 
   const deleteInvite = (id: string) => {
     setPendingInvites((prev) => prev.filter((invite) => invite.id !== id));
+    toast.info("Invitation removed");
   };
 
   const copyInviteLink = async () => {
@@ -145,51 +140,46 @@ const InvitesPage = ({ workspaceId, onClose, onSubmit }: InvitesPageProps) => {
 
     try {
       await navigator.clipboard.writeText(inviteLink);
-      setToastMessage("Invite link copied");
+      toast.success("Invite link copied to clipboard");
     } catch {
-      setToastMessage("Could not copy link");
+      toast.error("Could not copy link");
     }
   };
 
   return (
-    <div className="relative min-h-screen px-4 py-14 text-slate-100">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#1c2a3e] shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-        <div className="px-6 pb-6 pt-5 sm:px-8">
-          <div className="mb-7 flex items-start gap-3">
-            <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-[#162742] text-[#4f7bff]">
-              <MailPlus className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="text-xl font-semibold text-black">
-                Invite team members
-              </h2>
-              <p className="text-sm text-black">
-                Invite people to collaborate in Acme Projects
-              </p>
-            </div>
+    <div className="relative min-h-screen bg-[#f8fafc] dark:bg-[#020617] px-4 py-14">
+      <Card className="mx-auto w-full max-w-3xl border-slate-200 dark:border-slate-800 shadow-xl dark:bg-[#0b1220]">
+        <CardHeader className="flex flex-row items-start gap-4 px-6 pt-8 pb-4 sm:px-8">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
+            <MailPlus className="h-5 w-5" />
           </div>
+          <div className="flex-1">
+            <CardTitle className="text-2xl font-bold text-slate-900 dark:text-slate-100">Invite team members</CardTitle>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Invite people to collaborate in Acme Projects</p>
+          </div>
+        </CardHeader>
 
-          <div className="mb-5">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.11em] text-black">
+        <CardContent className="px-6 sm:px-8 space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Email Addresses
             </label>
-            <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-lg border border-[#223754] bg-[#0d1730] px-3 py-2">
+            <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#070b14] px-3 py-2 transition-all focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500">
               {emails.map((email) => (
-                <button
-                  className="inline-flex items-center gap-1 rounded-md border border-[#28426b] bg-[#13284a] px-2 py-1 text-xs text-[#83a8ff]"
+                <Badge
+                  variant="secondary"
+                  className="gap-1.5 pl-2 pr-1 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-none"
                   key={email}
-                  onClick={() => removeEmail(email)}
-                  type="button"
                 >
                   {email}
-                  <span aria-hidden className="text-[#6e8ecc]">
-                    x
-                  </span>
-                </button>
+                  <button onClick={() => removeEmail(email)} className="rounded-full p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
               ))}
 
               <input
-                className="min-w-[180px] flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+                className="min-w-[180px] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-slate-200"
                 onBlur={() => {
                   addEmails(parsedInputEmails);
                   setEmailInput("");
@@ -208,114 +198,95 @@ const InvitesPage = ({ workspaceId, onClose, onSubmit }: InvitesPageProps) => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.11em] text-black">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Role
               </label>
-              <select
-                className="h-11 w-full rounded-lg border border-[#223754] bg-[#0d1730] px-3 text-sm text-slate-100 outline-none focus:border-[#3a66ff]"
-                onChange={(event) => setRole(event.target.value as Role)}
-                value={role}
-              >
-                <option value="Member">Member (Full editing access)</option>
-                <option value="Admin">Admin (Manage team and settings)</option>
-                <option value="Viewer">Viewer (Read-only access)</option>
-              </select>
+              <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                <SelectTrigger className="h-11 dark:border-slate-800 dark:bg-[#070b14]">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-[#0b1220] dark:border-slate-800">
+                  <SelectItem value="Member">Member (Full access)</SelectItem>
+                  <SelectItem value="Admin">Admin (Full manage)</SelectItem>
+                  <SelectItem value="Viewer">Viewer (Read only)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <button
-              className="h-11 rounded-lg bg-[#3273ff] px-6 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(86,130,255,0.2),0_8px_22px_rgba(50,115,255,0.35)] transition hover:bg-[#2d67e0] disabled:opacity-50"
-              disabled={isSending}
+            <Button
+              className="h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 shadow-lg shadow-blue-500/20"
+              disabled={isSending || emails.length === 0}
               onClick={sendInvites}
-              type="button"
             >
               {isSending ? "Sending..." : "Send Invites"}
-            </button>
-          </div>
-        </div>
-
-        <div className="border-y border-[#1d2f49]">
-          <div className="border-b border-[#1d2f49] px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-black sm:px-8">
-            Pending Invitations ({pendingInvites.length})
+            </Button>
           </div>
 
-          {pendingInvites.map((invite) => (
-            <div
-              className="flex items-center justify-between gap-4 border-b border-[#182841] px-6 py-3 last:border-b-0 sm:px-8"
-              key={invite.id}
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#21304a] text-[10px] font-semibold text-black">
-                  {invite.initials}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-slate-200">{invite.email}</p>
-                  <p className="text-xs text-slate-500">{invite.invitedAt}</p>
-                </div>
-              </div>
+          <Separator className="my-8 bg-slate-200 dark:bg-slate-800" />
 
-              <div className="flex items-center gap-3">
-                <span
-                  className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${getRoleStyles(
-                    invite.role
-                  )}`}
-                >
-                  {invite.role}
-                </span>
-                <button
-                  className="text-xs font-semibold text-[#6fa0ff] hover:text-[#8eb4ff]"
-                  onClick={() => resendInvite(invite.email)}
-                  type="button"
-                >
-                  Resend
-                </button>
-                <button
-                  className="text-slate-500 hover:text-slate-300"
-                  onClick={() => deleteInvite(invite.id)}
-                  type="button"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Pending Invitations ({pendingInvites.length})
+              </h3>
             </div>
-          ))}
-        </div>
 
-        <div className="flex items-center justify-between px-6 py-4 sm:px-8">
-          <button
-            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200"
-            onClick={copyInviteLink}
-            type="button"
-          >
-            <Link2 className="h-4 w-4" />
-            Copy invite link
-          </button>
-          <div className="flex items-center gap-3">
-            <button
-              className="text-sm text-slate-400 hover:text-slate-200"
-              onClick={onClose}
-              type="button"
-            >
-              Close
-            </button>
-            <button
-              className="rounded-lg bg-[#3273ff] px-4 py-2 text-sm font-semibold text-black transition hover:bg-[#2d67e0]"
-              onClick={onSubmit}
-              type="button"
-            >
-              Submit
-            </button>
+            <div className="space-y-1">
+              {pendingInvites.length === 0 ? (
+                <div className="text-center py-6 text-sm text-slate-500 dark:text-slate-400 italic">No pending invitations</div>
+              ) : (
+                pendingInvites.map((invite) => (
+                  <div
+                    className="flex items-center justify-between gap-4 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/20 px-4 py-3 transition-all"
+                    key={invite.id}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar className="h-9 w-9 border border-slate-200 dark:border-slate-800">
+                        <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300">
+                          {invite.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{invite.email}</p>
+                        <p className="text-xs text-slate-500">{invite.invitedAt}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Badge variant={getRoleBadgeVariant(invite.role)} className="h-6 text-[10px] font-bold uppercase px-2">
+                        {invite.role}
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="h-8 text-blue-600 dark:text-blue-400 hover:text-blue-700 font-bold" onClick={() => resendInvite(invite.email)}>
+                        Resend
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30" onClick={() => deleteInvite(invite.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
 
-      {toastMessage ? (
-        <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-xl">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          <span>{toastMessage}</span>
-        </div>
-      ) : null}
+        <CardFooter className="flex items-center justify-between px-6 py-6 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/30">
+          <Button variant="ghost" className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 gap-2" onClick={copyInviteLink}>
+            <Link2 className="h-4 w-4" />
+            <span>Copy link</span>
+          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={onClose} className="dark:border-slate-800">
+              Close
+            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8" onClick={onSubmit}>
+              Submit
+            </Button>
+          </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 };
