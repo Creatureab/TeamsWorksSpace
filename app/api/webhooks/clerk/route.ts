@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import dbConnect from '@/lib/mongodb';
 import { User } from '@/lib/model/user';
+import { Workspace } from '@/lib/model/workspace';
 
 export async function POST(req: Request) {
     // Get the headers
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     const eventType = evt.type;
 
     if (eventType === 'user.created' || eventType === 'user.updated') {
-        const { id, email_addresses, first_name, last_name, image_url } = evt.data;
+        const { id, email_addresses, first_name, last_name, image_url, public_metadata } = evt.data;
 
         const email = email_addresses[0]?.email_address;
 
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
 
         try {
             // Create or update user in MongoDB
-            await User.findOneAndUpdate(
+            const user = await User.findOneAndUpdate(
                 { clerkId: id },
                 {
                     clerkId: id,
@@ -77,6 +78,19 @@ export async function POST(req: Request) {
                 },
                 { upsert: true, new: true }
             );
+
+            // Handle workspace invitation if metadata exists
+            if (eventType === 'user.created' && public_metadata?.workspaceId) {
+                const workspaceId = public_metadata.workspaceId as string;
+                const role = (public_metadata.role as string) || 'Member';
+
+                await Workspace.findByIdAndUpdate(workspaceId, {
+                    $push: { members: { user: user._id, role } },
+                    $pull: { pendingInvites: { email: email } }
+                });
+
+                console.log(`User ${id} added to workspace ${workspaceId} via invitation`);
+            }
 
             console.log(`User ${id} ${eventType === 'user.created' ? 'created' : 'updated'}`);
         } catch (error) {

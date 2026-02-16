@@ -14,35 +14,14 @@ type PendingInvite = {
 };
 
 type InvitesPageProps = {
+  workspaceId: string;
   onClose?: () => void;
   onSubmit?: () => void;
 };
 
-const initialPendingInvites: PendingInvite[] = [
-  {
-    id: "1",
-    email: "james.k@outlook.com",
-    invitedAt: "Invited 2 hours ago",
-    role: "Member",
-    initials: "JK",
-  },
-  {
-    id: "2",
-    email: "linda.blake@techcorp.io",
-    invitedAt: "Invited yesterday",
-    role: "Admin",
-    initials: "LB",
-  },
-  {
-    id: "3",
-    email: "t.miller@freelance.net",
-    invitedAt: "Invited 3 days ago",
-    role: "Viewer",
-    initials: "TM",
-  },
-];
+const initialPendingInvites: PendingInvite[] = [];
 
-const initialEmails = ["alex@design.com", "sarah.m@company.co"];
+const initialEmails: string[] = [];
 
 const getInitials = (email: string) => {
   const localPart = email.split("@")[0] || "";
@@ -60,7 +39,7 @@ const getRoleStyles = (role: Role) => {
   return "bg-[#2b3855] text-[#b6c9ee]";
 };
 
-const InvitesPage = ({ onClose, onSubmit }: InvitesPageProps) => {
+const InvitesPage = ({ workspaceId, onClose, onSubmit }: InvitesPageProps) => {
   const [emails, setEmails] = useState<string[]>(initialEmails);
   const [emailInput, setEmailInput] = useState("");
   const [role, setRole] = useState<Role>("Member");
@@ -68,6 +47,7 @@ const InvitesPage = ({ onClose, onSubmit }: InvitesPageProps) => {
     initialPendingInvites
   );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const parsedInputEmails = useMemo(() => {
     return emailInput
@@ -104,27 +84,52 @@ const InvitesPage = ({ onClose, onSubmit }: InvitesPageProps) => {
     setEmails((prev) => prev.filter((email) => email !== target));
   };
 
-  const sendInvites = () => {
+  const sendInvites = async () => {
     if (emails.length === 0) {
       return;
     }
 
-    const newInvites = emails.map((email) => ({
-      id: `${email}-${Date.now()}`,
-      email,
-      invitedAt: "Invited just now",
-      role,
-      initials: getInitials(email),
-    }));
+    setIsSending(true);
 
-    setPendingInvites((prev) => [...newInvites, ...prev]);
-    setToastMessage(
-      `Invites sent successfully to ${emails.length} recipient${
-        emails.length > 1 ? "s" : ""
-      }`
-    );
-    setEmails([]);
-    setEmailInput("");
+    try {
+      const response = await fetch(`/api/workspaces/${workspaceId}/invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emails,
+          role,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update local list from returned workspace pendingInvites
+        const newInvitesFromBackend = data.pendingInvites.map((inv: any) => ({
+          id: inv._id,
+          email: inv.email,
+          invitedAt: "Invited just now",
+          role: inv.role as Role,
+          initials: getInitials(inv.email),
+        }));
+
+        setPendingInvites(newInvitesFromBackend);
+        setToastMessage(
+          `Invites sent successfully to ${emails.length} recipient${emails.length > 1 ? "s" : ""
+          }`
+        );
+        setEmails([]);
+        setEmailInput("");
+      } else {
+        const errorText = await response.text();
+        console.error("Failed to send invites:", errorText);
+        setToastMessage(`Error: ${errorText}`);
+      }
+    } catch (error) {
+      console.error("Send invites error:", error);
+      setToastMessage("Failed to send invites");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const resendInvite = (email: string) => {
@@ -220,11 +225,12 @@ const InvitesPage = ({ onClose, onSubmit }: InvitesPageProps) => {
             </div>
 
             <button
-              className="h-11 rounded-lg bg-[#3273ff] px-6 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(86,130,255,0.2),0_8px_22px_rgba(50,115,255,0.35)] transition hover:bg-[#2d67e0]"
+              className="h-11 rounded-lg bg-[#3273ff] px-6 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(86,130,255,0.2),0_8px_22px_rgba(50,115,255,0.35)] transition hover:bg-[#2d67e0] disabled:opacity-50"
+              disabled={isSending}
               onClick={sendInvites}
               type="button"
             >
-              Send Invites
+              {isSending ? "Sending..." : "Send Invites"}
             </button>
           </div>
         </div>

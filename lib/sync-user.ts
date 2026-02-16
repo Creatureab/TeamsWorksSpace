@@ -22,10 +22,16 @@ export async function syncUser() {
                 imageUrl: clerkUser.imageUrl,
                 updatedAt: new Date(),
             },
-            { upsert: true, new: true }
+            {
+                upsert: true,
+                returnDocument: 'after'
+            }
         );
 
-        return user;
+        return {
+            ...user.toObject(),
+            publicMetadata: clerkUser.publicMetadata
+        };
     } catch (error) {
         console.error("Error syncing user:", error);
         return null;
