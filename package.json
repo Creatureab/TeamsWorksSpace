@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"bun run server:dev\"",
+    "server:dev": "bun run --hot server/index.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -16,10 +17,12 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "lucide-react": "^0.563.0",
+    "mongoose": "^9.2.1",
     "next": "16.1.6",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "svix": "^1.85.0",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

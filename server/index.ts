@@ -1,32 +1,52 @@
 import express from 'express';
-import next from 'next';
 import cors from 'cors';
+import dbConnect from '../lib/mongodb';
 
-const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
-const handle = app.getRequestHandler();
-const PORT = process.env.PORT || 3001;
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-app.prepare().then(() => {
-    const server = express();
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-    // Middleware
-    server.use(cors());
-    server.use(express.json());
-
-    // API Routes
-    server.get('/api/health', (req, res) => {
-        res.json({ status: 'Server is running' });
-    });
-
-    // Handle all other routes with Next.js
-    server.all('*', (req, res) => {
-        return handle(req, res);
-    });
-
-    // Start server
-    server.listen(PORT, (err?: any) => {
-        if (err) throw err;
-        console.log(`> Ready on http://localhost:${PORT}`);
-    });
+// Routes
+app.get('/', (req, res) => {
+    res.send('Softwelve Notion Clone Backend is running!');
 });
+
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', message: 'Server is healthy' });
+});
+
+// Example route for documents
+app.get('/api/documents', async (req, res) => {
+    try {
+        // This is just a placeholder, you would normally fetch from DB
+        res.json({ documents: [] });
+    } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Start Server
+const startServer = async () => {
+    console.log('🔄 Starting server...');
+    try {
+        // Attempt DB connection but don't block server start if it fails (optional)
+        // For now, let's try to connect
+        await dbConnect().then(() => {
+            console.log('✅ Connected to MongoDB');
+        }).catch((err) => {
+            console.error('⚠️ MongoDB connection failed, but server will start:', err.message);
+        });
+
+        app.listen(PORT, () => {
+            console.log(`🚀 Express server is running on http://localhost:${PORT}`);
+            console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+        });
+    } catch (error) {
+        console.error('❌ Unexpected error during startup:', error);
+    }
+};
+
+startServer();
