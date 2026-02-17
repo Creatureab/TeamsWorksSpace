@@ -85,6 +85,15 @@ const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
       if (response.ok) {
         const data = await response.json();
         onContinue?.(data._id);
+      } else if (response.status === 409) {
+        // User already has a workspace
+        const data = await response.json();
+        alert(data.message || "You already have a workspace. Redirecting...");
+
+        // Redirect to existing workspace
+        if (data.workspaceId) {
+          window.location.href = `/project/${data.workspaceId}`;
+        }
       } else {
         const errorData = await response.text();
         console.error("Failed to create workspace:", errorData);
@@ -92,6 +101,7 @@ const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
       }
     } catch (error) {
       console.error("Submit error:", error);
+      alert("An error occurred while creating your workspace. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -175,8 +185,8 @@ const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
                       key={size}
                       variant={selectedSize === size ? "default" : "outline"}
                       className={`h-auto border py-3 text-sm transition-all ${selectedSize === size
-                          ? "bg-[#3b19e6] text-white hover:bg-[#3b19e6]/90"
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        ? "bg-[#3b19e6] text-white hover:bg-[#3b19e6]/90"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       onClick={() => setSelectedSize(size)}
                       type="button"

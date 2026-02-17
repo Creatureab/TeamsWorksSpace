@@ -6,7 +6,9 @@ import {
   Folder,
   LayoutDashboard,
   Lock,
+  LogOut,
   Moon,
+  Plus,
   Search,
   Settings,
   Users,
@@ -17,10 +19,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useClerk } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -39,6 +52,13 @@ interface SidebarProps {
 
 export default function Sidebar({ user, workspaces, currentWorkspace, projects = [] }: SidebarProps) {
   const initials = currentWorkspace?.name?.charAt(0) || "W";
+  const { signOut } = useClerk();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/");
+  };
 
   return (
     <ShadcnSidebar className="border-r border-slate-200 bg-[#f9f9fb] dark:border-slate-800 dark:bg-[#0b0f17]">
@@ -111,6 +131,13 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
           <SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-widest text-slate-500/80">
             Projects
           </SidebarGroupLabel>
+          <SidebarGroupAction
+            onClick={() => router.push(`/createProject?workspaceId=${currentWorkspace._id}&name=${currentWorkspace.name}`)}
+            className="hover:bg-slate-200 dark:hover:bg-slate-800"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="sr-only">New Project</span>
+          </SidebarGroupAction>
           <SidebarGroupContent>
             <SidebarMenu>
               {projects.length > 0 ? (
@@ -178,26 +205,45 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
             </Tooltip>
           </TooltipProvider>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Avatar className="h-9 w-9 border border-slate-200 dark:border-slate-700">
-              <AvatarImage src={user?.imageUrl} alt={user?.firstName} />
-              <AvatarFallback className="bg-[#2b6cee] text-white text-xs font-bold">
-                {user?.firstName?.charAt(0) || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-              {user?.firstName ? `${user.firstName} ${user.lastName || ""}` : "User"}
-            </p>
-            <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              {user?.email}
-            </p>
-          </div>
-        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="group flex w-full items-center gap-3 rounded-lg p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+              <div className="relative">
+                <Avatar className="h-9 w-9 border border-slate-200 dark:border-slate-700">
+                  <AvatarImage src={user?.imageUrl} alt={user?.firstName} />
+                  <AvatarFallback className="bg-[#2b6cee] text-white text-xs font-bold">
+                    {user?.firstName?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {user?.firstName ? `${user.firstName} ${user.lastName || ""}` : "User"}
+                </p>
+                <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  {user?.email}
+                </p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-y-0.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" side="top">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Profile Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-red-600 focus:text-red-600 cursor-pointer" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
     </ShadcnSidebar>
   );
 }
+

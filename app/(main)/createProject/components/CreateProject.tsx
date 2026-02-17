@@ -7,6 +7,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogFooter,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,15 +66,16 @@ export default function CreateProjectModal({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create project");
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to create project");
       }
 
       const data = await response.json();
       toast.success("Project created successfully");
       onCreate(data);
       onClose();
-    } catch (error) {
-      toast.error("Something went wrong");
+    } catch (error: any) {
+      toast.error(error.message || "Something went wrong");
     } finally {
       setIsLoading(false);
     }
@@ -81,6 +84,12 @@ export default function CreateProjectModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-[800px] overflow-hidden rounded-2xl border border-white/10 bg-[#0f172b] p-0 text-white shadow-2xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Create New Project</DialogTitle>
+          <DialogDescription>
+            Enter the details for your new project.
+          </DialogDescription>
+        </DialogHeader>
         {/* Header Visual */}
         <div
           className="relative h-32 bg-cover bg-center"

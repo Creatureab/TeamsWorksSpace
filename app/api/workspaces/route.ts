@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
 import { Workspace } from "@/lib/model/workspace";
 import { User } from "@/lib/model/user";
@@ -19,6 +19,18 @@ export async function POST(req: Request) {
             return new NextResponse("User not found in database", { status: 404 });
         }
 
+        // Check if user already owns a workspace
+        const existingWorkspace = await Workspace.findOne({ owner: dbUser._id });
+        if (existingWorkspace) {
+            return NextResponse.json({
+                error: "You already have a workspace",
+                workspaceId: existingWorkspace._id,
+                workspaceName: existingWorkspace.name,
+                workspaceSlug: existingWorkspace.slug,
+                message: "You already have a workspace. Redirecting to your workspace..."
+            }, { status: 409 }); // 409 Conflict
+        }
+
         const { name, slug, size, type } = await req.json();
 
         if (!name || !slug || !size) {
@@ -26,8 +38,8 @@ export async function POST(req: Request) {
         }
 
         // Check if slug is unique
-        const existingWorkspace = await Workspace.findOne({ slug });
-        if (existingWorkspace) {
+        const existingSlug = await Workspace.findOne({ slug });
+        if (existingSlug) {
             return new NextResponse("Slug already exists", { status: 400 });
         }
 
@@ -40,9 +52,24 @@ export async function POST(req: Request) {
             members: [{ user: dbUser._id, role: 'Admin' }],
         });
 
+        // Update Clerk user metadata with workspace ID
+        try {
+            const client = await clerkClient();
+            await client.users.updateUserMetadata(clerkId, {
+                publicMetadata: {
+                    workspaceId: workspace._id.toString(),
+                    role: 'Admin'
+                }
+            });
+        } catch (clerkError) {
+            console.error("[CLERK_UPDATE_ERROR]", clerkError);
+            // Don't fail the request if Clerk update fails
+        }
+
         return NextResponse.json(workspace);
     } catch (error) {
         console.error("[WORKSPACES_POST]", error);
         return new NextResponse("Internal Error", { status: 500 });
     }
 }
+

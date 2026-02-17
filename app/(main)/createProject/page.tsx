@@ -19,7 +19,7 @@ const CreateProjectContent = () => {
   const handleCreate = (project: any) => {
     setIsOpen(false);
     // Redirect back to the workspace after creation
-    router.push(`/workspace/${workspaceId}`);
+    router.push(`/project/${workspaceId}`);
   };
 
   return (

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { SignedIn, SignedOut, UserButton, SignOutButton } from "@clerk/nextjs";
 
 const navItems = ["Product", "Solutions", "Pricing", "Enterprise"];
 
@@ -29,19 +30,31 @@ export default function HomeHeader() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            asChild
-            className="text-slate-700 shadow-none hover:bg-white dark:text-slate-200 dark:hover:bg-white/5"
-            variant="ghost"
-          >
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button
-            asChild
-            className="bg-[#3b19e6] text-white shadow-lg shadow-[#3b19e6]/20 hover:bg-[#3015c4]"
-          >
-            <Link href="/signup">Get Started</Link>
-          </Button>
+          <SignedOut>
+            <Button
+              asChild
+              className="text-slate-700 shadow-none hover:bg-white dark:text-slate-200 dark:hover:bg-white/5"
+              variant="ghost"
+            >
+              <Link href="/login">Log in</Link>
+            </Button>
+            <Button
+              asChild
+              className="bg-[#3b19e6] text-white shadow-lg shadow-[#3b19e6]/20 hover:bg-[#3015c4]"
+            >
+              <Link href="/signup">Get Started</Link>
+            </Button>
+          </SignedOut>
+          <SignedIn>
+            <Button
+              asChild
+              variant="ghost"
+              className="text-slate-700 dark:text-slate-200"
+            >
+              <Link href="/workspace">Dashboard</Link>
+            </Button>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
         </div>
       </div>
     </nav>

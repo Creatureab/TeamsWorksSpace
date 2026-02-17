@@ -35,7 +35,7 @@ const projectSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
-    owner: {
+    createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,

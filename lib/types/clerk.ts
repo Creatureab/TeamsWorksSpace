@@ -19,12 +19,12 @@ export interface ClerkUser {
     publicMetadata?: ClerkUserMetadata;
     primaryEmailAddress?: {
         emailAddress: string;
-    };
-    fullName?: string;
-    username?: string;
+    } | null;
+    fullName?: string | null;
+    username?: string | null;
     imageUrl?: string;
-    firstName?: string;
-    lastName?: string;
+    firstName?: string | null;
+    lastName?: string | null;
     // Add other Clerk user properties as needed
 }
 
