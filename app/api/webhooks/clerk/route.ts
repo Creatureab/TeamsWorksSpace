@@ -4,6 +4,7 @@ import { WebhookEvent } from '@clerk/nextjs/server';
 import dbConnect from '@/lib/mongodb';
 import { User } from '@/lib/model/user';
 import { Workspace } from '@/lib/model/workspace';
+import type { ClerkUserMetadata } from '@/lib/types/clerk';
 
 export async function POST(req: Request) {
     // Get the headers
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
 
     // If there are no headers, error out
     if (!svix_id || !svix_timestamp || !svix_signature) {
-        return new Response('Error occured -- no svix headers', {
+        return new Response('Error occurred -- no svix headers', {
             status: 400
         });
     }
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         }) as WebhookEvent;
     } catch (err) {
         console.error('Error verifying webhook:', err);
-        return new Response('Error occured', {
+        return new Response('Error occurred', {
             status: 400
         });
     }
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
         const email = email_addresses[0]?.email_address;
 
         if (!email) {
-            return new Response('Error occured -- no email address', {
+            return new Response('Error occurred -- no email address', {
                 status: 400
             });
         }
@@ -81,8 +82,9 @@ export async function POST(req: Request) {
 
             // Handle workspace invitation if metadata exists
             if (eventType === 'user.created' && public_metadata?.workspaceId) {
-                const workspaceId = public_metadata.workspaceId as string;
-                const role = (public_metadata.role as string) || 'Member';
+                const metadata = public_metadata as ClerkUserMetadata;
+                const workspaceId = metadata.workspaceId as string;
+                const role = metadata.role || 'Member';
 
                 await Workspace.findByIdAndUpdate(workspaceId, {
                     $push: { members: { user: user._id, role } },
@@ -95,7 +97,7 @@ export async function POST(req: Request) {
             console.log(`User ${id} ${eventType === 'user.created' ? 'created' : 'updated'}`);
         } catch (error) {
             console.error('Error handling user event:', error);
-            return new Response('Error occured during DB operation', {
+            return new Response('Error occurred during DB operation', {
                 status: 500
             });
         }
@@ -109,7 +111,7 @@ export async function POST(req: Request) {
             console.log(`User ${id} deleted`);
         } catch (error) {
             console.error('Error deleting user:', error);
-            return new Response('Error occured during DB operation', {
+            return new Response('Error occurred during DB operation', {
                 status: 500
             });
         }
