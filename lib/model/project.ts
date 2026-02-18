@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const taskSchema = new mongoose.Schema({
     title: { type: String, required: true },
+    description: { type: String, default: '' },
+    imageUrl: { type: String },
     status: { type: String, default: 'todo' },
     priority: { type: String, default: 'medium' },
     assignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
