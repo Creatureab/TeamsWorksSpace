@@ -15,16 +15,28 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 
 interface ProjectHeroProps {
-    user: any;
-    project: any;
-    currentWorkspace: any;
+    user: {
+        firstName?: string;
+        lastName?: string;
+    } | null;
+    project: {
+        _id?: string;
+        title?: string;
+        description?: string;
+        privacy?: string;
+    } | null;
+    currentWorkspace: {
+        name?: string;
+    } | null;
 }
 
-export default function ProjectHero({ user, project, currentWorkspace }: ProjectHeroProps) {
+export default function ProjectHero({ project, currentWorkspace }: ProjectHeroProps) {
     const projectTitle = project?.title || "Project";
     const workspaceName = currentWorkspace?.name || "Workspace";
+    const taskHref = project?._id ? `/project/${project._id}/task` : "#";
 
     return (
         <main className="min-w-0 flex-1 overflow-y-auto bg-white dark:bg-[#0b0f17]">
@@ -46,9 +58,11 @@ export default function ProjectHero({ user, project, currentWorkspace }: Project
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500">
                         <MoreHorizontal className="h-4 w-4" />
                     </Button>
-                    <Button className="bg-[#2b6cee] hover:bg-[#2b6cee]/90 h-8 text-xs font-bold px-3">
-                        <Plus className="h-3.5 w-3.5 mr-1.5" />
-                        Add Task
+                    <Button asChild className="bg-[#2b6cee] hover:bg-[#2b6cee]/90 h-8 text-xs font-bold px-3">
+                        <Link href={taskHref}>
+                            <Plus className="h-3.5 w-3.5 mr-1.5" />
+                            Add Task
+                        </Link>
                     </Button>
                 </div>
             </header>
@@ -112,7 +126,9 @@ export default function ProjectHero({ user, project, currentWorkspace }: Project
                                 </div>
                                 <h3 className="text-lg font-bold">No tasks yet</h3>
                                 <p className="text-sm text-slate-500 mb-6">Start by adding your first task to the project.</p>
-                                <Button className="bg-[#2b6cee]">Create Task</Button>
+                                <Button asChild className="bg-[#2b6cee]">
+                                    <Link href={taskHref}>Create Task</Link>
+                                </Button>
                             </div>
                         </TabsContent>
 

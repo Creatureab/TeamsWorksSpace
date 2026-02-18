@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Rocket } from "lucide-react";
 import {
   Dialog,
@@ -27,7 +27,7 @@ import { toast } from "sonner";
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (data: any) => void;
+  onCreate: (data: unknown) => void;
   workspaceName?: string;
   workspaceId?: string | null;
 }
@@ -74,16 +74,30 @@ export default function CreateProjectModal({
       toast.success("Project created successfully");
       onCreate(data);
       onClose();
-    } catch (error: any) {
-      toast.error(error.message || "Something went wrong");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   }, [title, description, privacy, automation, workspaceId, onCreate, onClose]);
 
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && !isLoading) {
+        onClose();
+      }
+    },
+    [isLoading, onClose]
+  );
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[800px] overflow-hidden rounded-2xl border border-white/10 bg-[#0f172b] p-0 text-white shadow-2xl">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="max-w-[800px] overflow-hidden rounded-2xl border border-white/10 bg-[#0f172b] p-0 text-white shadow-2xl"
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>

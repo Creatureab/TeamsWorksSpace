@@ -3,6 +3,7 @@ import { Workspace } from "@/lib/model/workspace";
 import { Project } from "@/lib/model/project";
 import dbConnect from "@/lib/mongodb";
 import ProjectHero from "./components/ProjectHero";
+import Task from "./components/Task";
 import Sidebar from "../../workspace/[[...id]]/components/Sidebar";
 import { redirect, notFound } from "next/navigation";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -14,6 +15,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id?: s
 
     const projectId = id?.[0];
     if (!projectId) redirect("/workspace");
+    const view = id?.[1];
+    const isTaskView = view === "task";
+
+    if (view && !isTaskView) {
+        return notFound();
+    }
 
     await dbConnect();
 
@@ -27,7 +34,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id?: s
 
     // 3. Verify user has access to this workspace
     const isOwner = workspace.owner.toString() === user._id.toString();
-    const isMember = workspace.members.some((m: any) => m.user.toString() === user._id.toString());
+    const members = workspace.members as Array<{ user: { toString: () => string } }>;
+    const isMember = members.some((member) => member.user.toString() === user._id.toString());
 
     if (!isOwner && !isMember) {
         redirect("/workspace");
@@ -60,11 +68,19 @@ export default async function ProjectPage({ params }: { params: Promise<{ id?: s
                     currentWorkspace={serializedCurrentWorkspace}
                     projects={serializedProjects}
                 />
-                <ProjectHero
-                    user={serializedUser}
-                    project={serializedProject}
-                    currentWorkspace={serializedCurrentWorkspace}
-                />
+                {isTaskView ? (
+                    <Task
+                        user={serializedUser}
+                        project={serializedProject}
+                        currentWorkspace={serializedCurrentWorkspace}
+                    />
+                ) : (
+                    <ProjectHero
+                        user={serializedUser}
+                        project={serializedProject}
+                        currentWorkspace={serializedCurrentWorkspace}
+                    />
+                )}
             </div>
         </SidebarProvider>
     );

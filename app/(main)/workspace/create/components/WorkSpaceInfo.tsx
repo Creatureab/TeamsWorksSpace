@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { OnboardingSidebar } from "./OnboardingSidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,6 +23,13 @@ type WorkSpaceInfoProps = {
   onContinue?: (workspaceType: string) => void;
 };
 
+type DbUser = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  imageUrl?: string;
+};
+
 const slugifyWorkspaceUrl = (value: string) =>
   value
     .trim()
@@ -32,8 +40,9 @@ const slugifyWorkspaceUrl = (value: string) =>
     .replace(/^-|-$/g, "");
 
 const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
+  const router = useRouter();
   const { isLoaded, user } = useUser();
-  const [dbUser, setDbUser] = useState<any>(null);
+  const [dbUser, setDbUser] = useState<DbUser | null>(null);
   const [isLoadingDb, setIsLoadingDb] = useState(true);
   const [workspaceName, setWorkspaceName] = useState("");
   const [selectedSize, setSelectedSize] = useState("1-5");
@@ -86,14 +95,12 @@ const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
         const data = await response.json();
         onContinue?.(data._id);
       } else if (response.status === 409) {
-        // User already has a workspace
         const data = await response.json();
-        alert(data.message || "You already have a workspace. Redirecting...");
-
-        // Redirect to existing workspace
-        if (data.workspaceId) {
-          window.location.href = `/project/${data.workspaceId}`;
+        if (data?.workspaceId) {
+          router.push(`/project/${data.workspaceId}`);
+          return;
         }
+        alert(data?.message || "Only one workspace is allowed per user.");
       } else {
         const errorData = await response.text();
         console.error("Failed to create workspace:", errorData);
@@ -101,7 +108,6 @@ const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
       }
     } catch (error) {
       console.error("Submit error:", error);
-      alert("An error occurred while creating your workspace. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

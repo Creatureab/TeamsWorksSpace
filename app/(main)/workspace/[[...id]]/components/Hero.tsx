@@ -2,9 +2,7 @@
 
 import {
   ArrowRight,
-  CheckCircle2,
   ChevronRight,
-  MessageCircle,
   FolderPlus,
   History,
   Home,
@@ -13,13 +11,24 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+type HeroProject = {
+  _id: string;
+  title: string;
+  updatedAt?: string;
+};
+
 interface HeroProps {
-  user: any;
-  currentWorkspace: any;
-  projects?: any[];
+  user: {
+    firstName?: string;
+  } | null;
+  currentWorkspace: {
+    _id?: string;
+    name?: string;
+  } | null;
+  projects?: HeroProject[];
 }
 
 const quickActions = [
@@ -124,7 +133,7 @@ export default function Hero({ user, currentWorkspace, projects = [] }: HeroProp
             </div>
             {projects.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
-                {projects.slice(0, 5).map((project: any) => (
+                {projects.slice(0, 5).map((project) => (
                   <Link key={project._id} href={`/workspace/${currentWorkspace._id}?project=${project.slug}`}>
                     <Card className="group flex items-center justify-between p-4 transition-all hover:border-[#2b6cee]/50 hover:shadow-sm dark:bg-slate-900/50">
                       <div className="flex items-center gap-4">

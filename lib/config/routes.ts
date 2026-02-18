@@ -17,5 +17,4 @@ export const PUBLIC_ROUTES = [
 export const REDIRECT_ROUTES = [
     ROUTES.LANDING,
     ROUTES.WORKSPACE_CREATE,
-    ROUTES.PROJECT_CREATE,
 ] as const;
