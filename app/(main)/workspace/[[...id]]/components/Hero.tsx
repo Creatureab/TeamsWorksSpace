@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 interface HeroProps {
   user: any;
   currentWorkspace: any;
+  projects?: any[];
 }
 
 const quickActions = [
@@ -53,7 +54,7 @@ const quickActions = [
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
-export default function Hero({ user, currentWorkspace }: HeroProps) {
+export default function Hero({ user, currentWorkspace, projects = [] }: HeroProps) {
   const userName = user?.firstName || "there";
   const workspaceName = currentWorkspace?.name || "Workspace";
 
@@ -121,12 +122,42 @@ export default function Hero({ user, currentWorkspace }: HeroProps) {
               </h2>
               <Badge variant="outline" className="font-medium">Live Updates</Badge>
             </div>
-            <Card className="border-dashed border-2 py-12 flex flex-col items-center justify-center text-center dark:bg-slate-900/50">
-              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                <Sparkles className="h-6 w-6 text-slate-400" />
+            {projects.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4">
+                {projects.slice(0, 5).map((project: any) => (
+                  <Link key={project._id} href={`/workspace/${currentWorkspace._id}?project=${project.slug}`}>
+                    <Card className="group flex items-center justify-between p-4 transition-all hover:border-[#2b6cee]/50 hover:shadow-sm dark:bg-slate-900/50">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/20">
+                          <FolderPlus className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold group-hover:text-[#2b6cee] transition-colors">
+                            {project.title}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Modified {new Date(project.updatedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#2b6cee] transition-all group-hover:translate-x-0.5" />
+                    </Card>
+                  </Link>
+                ))}
+                {projects.length > 5 && (
+                  <Button variant="ghost" className="w-full text-xs text-slate-500 font-bold">
+                    View all projects
+                  </Button>
+                )}
               </div>
-              <p className="text-sm text-slate-500">No recent activity yet. Start by creating a project!</p>
-            </Card>
+            ) : (
+              <Card className="border-dashed border-2 py-12 flex flex-col items-center justify-center text-center dark:bg-slate-900/50">
+                <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                  <Sparkles className="h-6 w-6 text-slate-400" />
+                </div>
+                <p className="text-sm text-slate-500">No recent activity yet. Start by creating a project!</p>
+              </Card>
+            )}
           </section>
 
           <section>

@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -54,6 +54,9 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
   const initials = currentWorkspace?.name?.charAt(0) || "W";
   const { signOut } = useClerk();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeProjectSlug = searchParams.get("project");
 
   const handleLogout = async () => {
     await signOut();
@@ -100,15 +103,15 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive>
-                  <a href="#" className="flex items-center gap-3">
+                <SidebarMenuButton asChild isActive={(pathname === `/workspace/${currentWorkspace?._id}` || pathname === "/workspace" || pathname === "/") && !activeProjectSlug}>
+                  <a href={`/workspace/${currentWorkspace?._id}`} className="flex items-center gap-3">
                     <LayoutDashboard className="h-4 w-4" />
                     <span>Overview</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={pathname?.includes("/documents")}>
                   <a href="#" className="flex items-center gap-3">
                     <Folder className="h-4 w-4" />
                     <span>Documents</span>
@@ -116,7 +119,7 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={pathname?.includes("/members")}>
                   <a href="#" className="flex items-center gap-3">
                     <Users className="h-4 w-4" />
                     <span>Team Members</span>
@@ -143,9 +146,9 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
               {projects.length > 0 ? (
                 projects.map((project: any) => (
                   <SidebarMenuItem key={project._id}>
-                    <SidebarMenuButton asChild>
-                      <a href={`/project/${project._id}`} className="flex items-center gap-3">
-                        <Folder className="h-4 w-4 text-[#2b6cee]" />
+                    <SidebarMenuButton asChild isActive={activeProjectSlug === project.slug}>
+                      <a href={`/workspace/${currentWorkspace?._id}?project=${project.slug}`} className="flex items-center gap-3">
+                        <Folder className={`h-4 w-4 ${activeProjectSlug === project.slug ? "text-white" : "text-[#2b6cee]"}`} />
                         <span className="truncate">{project.title}</span>
                       </a>
                     </SidebarMenuButton>

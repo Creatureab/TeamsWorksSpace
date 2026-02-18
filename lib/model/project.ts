@@ -23,6 +23,10 @@ const projectSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    slug: {
+        type: String,
+        required: true,
+    },
     description: {
         type: String,
     },
@@ -53,5 +57,7 @@ const projectSchema = new mongoose.Schema({
         default: Date.now,
     },
 });
+
+projectSchema.index({ workspace: 1, slug: 1 }, { unique: true });
 
 export const Project = mongoose.models.Project || mongoose.model('Project', projectSchema);

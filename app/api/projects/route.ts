@@ -4,6 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import { Project } from '@/lib/model/project';
 import { Workspace } from '@/lib/model/workspace';
 import mongoose from 'mongoose';
+import { slugify } from '@/lib/utils';
 
 export async function POST(req: Request) {
     try {
@@ -40,14 +41,24 @@ export async function POST(req: Request) {
             return new NextResponse('Unauthorized or invalid workspace.', { status: 403 });
         }
 
-        // 4. Create the project with workspaceId and createdBy
+        // 4. Generate unique slug within the workspace
+        let slug = slugify(title);
+        const existingProject = await Project.findOne({ workspace: workspaceId, slug });
+
+        if (existingProject) {
+            // Append a small random string if slug exists
+            slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
+        }
+
+        // 5. Create the project with workspaceId, createdBy, and slug
         const project = await Project.create({
             title,
+            slug,
             description,
             privacy,
             automation,
             workspace: workspaceId,
-            createdBy: user._id, // Attach createdBy (userId)
+            createdBy: user._id,
             sheets: [{
                 name: 'Tasks',
                 tasks: []

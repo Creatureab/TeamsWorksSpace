@@ -7,9 +7,17 @@ import Sidebar from "./components/Sidebar";
 import { redirect } from "next/navigation";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
+import ProjectHero from "../../project/[[...id]]/components/ProjectHero";
 
-export default async function WorkspacePage({ params }: { params: Promise<{ id?: string[] }> }) {
+export default async function WorkspacePage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id?: string[] }>,
+  searchParams: Promise<{ project?: string }>
+}) {
   const { id } = await params;
+  const { project: projectSlug } = await searchParams;
   const user = await syncUser();
   if (!user) redirect("/sign-in");
 
@@ -31,11 +39,18 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id?:
 
   const projects = await Project.find({ workspace: currentWorkspace._id }).lean();
 
+  // 3. Find active project if slug is present
+  let activeProject = null;
+  if (projectSlug) {
+    activeProject = projects.find((p: any) => p.slug === projectSlug);
+  }
+
   // Sanitize data for Client Components (converts ObjectIds to strings)
   const serializedUser = JSON.parse(JSON.stringify(user));
   const serializedWorkspaces = JSON.parse(JSON.stringify(workspaces));
   const serializedCurrentWorkspace = JSON.parse(JSON.stringify(currentWorkspace));
   const serializedProjects = JSON.parse(JSON.stringify(projects));
+  const serializedActiveProject = activeProject ? JSON.parse(JSON.stringify(activeProject)) : null;
 
   return (
     <SidebarProvider>
@@ -46,10 +61,19 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id?:
           currentWorkspace={serializedCurrentWorkspace}
           projects={serializedProjects}
         />
-        <Hero
-          user={serializedUser}
-          currentWorkspace={serializedCurrentWorkspace}
-        />
+        {serializedActiveProject ? (
+          <ProjectHero
+            user={serializedUser}
+            project={serializedActiveProject}
+            currentWorkspace={serializedCurrentWorkspace}
+          />
+        ) : (
+          <Hero
+            user={serializedUser}
+            currentWorkspace={serializedCurrentWorkspace}
+            projects={serializedProjects}
+          />
+        )}
       </div>
     </SidebarProvider>
   );
