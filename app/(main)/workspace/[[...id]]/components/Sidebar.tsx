@@ -168,6 +168,49 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Teamspaces Section */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-[11px] font-semibold text-slate-500 uppercase flex items-center justify-between group">
+            <div className="flex items-center gap-1.5">
+              <Users size={12} /> Teamspaces
+            </div>
+            <button className="opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-800 rounded p-0.5 transition-all">
+              <Plus size={14} />
+            </button>
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-8 group">
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-amber-500/10 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                    <Sparkles size={10} />
+                  </div>
+                  <span className="text-sm font-medium">Engineering</span>
+                  <ChevronDown size={14} className="ml-auto text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-8 group">
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-500/10 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                    <Layout size={10} />
+                  </div>
+                  <span className="text-sm font-medium">Marketing</span>
+                  <ChevronDown size={14} className="ml-auto text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-8 group">
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-purple-500/10 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                    <CheckSquare size={10} />
+                  </div>
+                  <span className="text-sm font-medium">Product</span>
+                  <ChevronDown size={14} className="ml-auto text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {/* Workspace Content */}
         <SidebarGroup className="mt-4">
           <SidebarGroupLabel className="text-[11px] font-semibold text-slate-500 uppercase">Workspace</SidebarGroupLabel>
