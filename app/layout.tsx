@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   description: "Teams workspace application",
 };
 
+import { ThemeProvider } from "@/components/theme-provider";
+
 type RootLayoutProps = {
   children: ReactNode;
 };
@@ -22,13 +24,19 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body
-          className={`${plusJakartaSans.className} bg-white`}
-          style={{ backgroundColor: "#ffffff" }}
+          className={`${plusJakartaSans.className} antialiased`}
         >
-          {children}
-          <Toaster />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

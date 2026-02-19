@@ -124,3 +124,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+[contenteditable][data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: oklch(0.556 0 0);
+  pointer-events: none;
+  display: block;
+  opacity: 0.4;
+}
