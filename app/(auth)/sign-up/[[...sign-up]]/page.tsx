@@ -7,13 +7,14 @@ export default function SignUpPage() {
             title="Create your account"
             description="Join thousands of teams using Workspace to organize their work and collaborate better."
             footerText="Already have an account?"
-            footerCta="Log in"
+            footerCta="Sign in"
             footerHref="/sign-in"
         >
             <SignUp
                 routing="path"
                 path="/sign-up"
                 signInUrl="/sign-in"
+                forceRedirectUrl="/project/create"
             />
         </AuthShell>
     );

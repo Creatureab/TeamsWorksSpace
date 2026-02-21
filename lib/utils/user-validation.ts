@@ -43,8 +43,8 @@ export function isValidEmail(email: string): boolean {
 export async function checkUserWorkspace(): Promise<{
     hasWorkspace: boolean;
     primaryWorkspaceId: string | null;
-    ownedWorkspaces: any[];
-    memberWorkspaces: any[];
+    ownedWorkspaces: unknown[];
+    memberWorkspaces: unknown[];
 }> {
     try {
         const response = await fetch("/api/me/workspace");
@@ -82,21 +82,21 @@ export function redirectToWorkspace(workspaceId?: string | null) {
 }
 
 /**
- * Redirect to login with optional email parameter
+ * Redirect to sign-in with optional email parameter
  */
 export function redirectToLogin(email?: string) {
     const url = email
-        ? `/login?email=${encodeURIComponent(email)}`
-        : `/login`;
+        ? `/sign-in?email=${encodeURIComponent(email)}`
+        : `/sign-in`;
     window.location.href = url;
 }
 
 /**
- * Redirect to signup with optional email parameter
+ * Redirect to sign-up with optional email parameter
  */
 export function redirectToSignup(email?: string) {
     const url = email
-        ? `/signup?email=${encodeURIComponent(email)}`
-        : `/signup`;
+        ? `/sign-up?email=${encodeURIComponent(email)}`
+        : `/sign-up`;
     window.location.href = url;
 }

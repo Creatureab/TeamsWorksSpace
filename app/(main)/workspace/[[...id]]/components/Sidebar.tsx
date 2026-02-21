@@ -2,22 +2,36 @@
 
 import {
   ChevronDown,
-  ChevronRight,
-  Globe,
-  Home,
-  Inbox,
+  CircleHelp,
+  Folder,
+  LayoutDashboard,
   Lock,
   LogOut,
-  MoreHorizontal,
-  PanelLeft,
+  Moon,
   Plus,
   Search,
   Settings,
-  Star,
   Users,
+  Star,
+  Inbox,
+  Sparkles,
+  Command,
+  Clock,
+  Layout,
+  CheckSquare,
+  MoreHorizontal,
+  Bell,
+  Search as SearchIcon,
+  Home,
+  Sun,
+  Table,
+  ListTodo,
 } from "lucide-react";
+import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,581 +41,304 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClerk } from "@clerk/nextjs";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail,
-  SidebarSeparator,
-  useSidebar,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import CreateTeamSpaceDialog, { type TeamSpaceVisibility } from "./CreateTeamSpaceDialog";
-import CustomizeWorkspaceDialog, {
-  type WorkspaceCustomizationPayload,
-} from "./CustomizeWorkspaceDialog";
-
-interface SidebarUser {
-  email?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  imageUrl?: string | null;
-}
-
-interface SidebarWorkspace {
-  _id: string;
-  name: string;
-  type?: "organization" | "personal";
-  size?: "1-5" | "6-20" | "21-50" | "50+";
-}
-
-interface SidebarProject {
-  _id: string;
-  slug: string;
-  title: string;
-}
 
 interface SidebarProps {
-  user: SidebarUser | null;
-  workspaces: SidebarWorkspace[];
-  currentWorkspace: SidebarWorkspace | null;
-  projects?: SidebarProject[];
+  user: any;
+  workspaces: any[];
+  currentWorkspace: any;
+  projects?: any[];
 }
 
-interface TeamSpace {
-  id: string;
-  name: string;
-  visibility: TeamSpaceVisibility;
-}
-
-const initialTeamSpaces: TeamSpace[] = [
-  { id: "general", name: "General", visibility: "open" },
-  { id: "marketing", name: "Marketing", visibility: "closed" },
-  { id: "engineering", name: "Engineering", visibility: "private" },
-];
-
-const getInitial = (value?: string | null, fallback = "W") =>
-  value?.trim().charAt(0).toUpperCase() || fallback;
-
-const getTeamSpaceId = (name: string) =>
-  `${name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString(36)}`;
-
-const formatVisibility = (visibility: TeamSpaceVisibility) => {
-  if (visibility === "open") return "Open";
-  if (visibility === "closed") return "Closed";
-  return "Private";
-};
-
-export default function Sidebar({
-  user,
-  workspaces,
-  currentWorkspace,
-  projects = [],
-}: SidebarProps) {
-  const { toggleSidebar } = useSidebar();
+export default function Sidebar({ user, workspaces, currentWorkspace, projects = [] }: SidebarProps) {
+  const initials = currentWorkspace?.name?.charAt(0) || "W";
   const { signOut } = useClerk();
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const workspaceId = currentWorkspace?._id ?? "";
-  const workspaceNameFromProps = currentWorkspace?.name ?? "Workspace";
-  const workspaceTypeFromProps = currentWorkspace?.type ?? "organization";
-  const workspaceSizeFromProps = currentWorkspace?.size ?? "6-20";
   const activeProjectSlug = searchParams.get("project");
-  const pathnameParts = pathname.split("/").filter(Boolean);
-  const activeTeamSpaceId =
-    pathnameParts[0] === "workspace" && pathnameParts[2] === "team-space" && pathnameParts[3]
-      ? decodeURIComponent(pathnameParts[3])
-      : null;
-
-  const [activeItem, setActiveItem] = useState("home");
-  const [isTeamExpanded, setIsTeamExpanded] = useState(true);
-  const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
-  const [isCreateTeamSpaceOpen, setIsCreateTeamSpaceOpen] = useState(false);
-  const [isCustomizeWorkspaceOpen, setIsCustomizeWorkspaceOpen] = useState(false);
-  const [teamSpaces, setTeamSpaces] = useState<TeamSpace[]>(initialTeamSpaces);
-  const [workspaceDisplayName, setWorkspaceDisplayName] = useState(workspaceNameFromProps);
-  const [workspaceType, setWorkspaceType] = useState<"organization" | "personal">(workspaceTypeFromProps);
-  const [workspaceSize, setWorkspaceSize] = useState<"1-5" | "6-20" | "21-50" | "50+">(workspaceSizeFromProps);
-  const [isCompanySpaceEnabled, setIsCompanySpaceEnabled] = useState(true);
-
-  useEffect(() => {
-    setWorkspaceDisplayName(workspaceNameFromProps);
-    setWorkspaceType(workspaceTypeFromProps);
-    setWorkspaceSize(workspaceSizeFromProps);
-  }, [workspaceId, workspaceNameFromProps, workspaceSizeFromProps, workspaceTypeFromProps]);
-
-  const initials = getInitial(workspaceDisplayName);
-
-  const workspaceHomePath = workspaceId ? `/workspace/${workspaceId}` : "/workspace";
-  const favoriteProjects = projects.slice(0, 4);
-
-  const isHomeActive =
-    (pathname === workspaceHomePath || pathname === "/workspace" || pathname === "/") &&
-    !activeProjectSlug &&
-    !activeTeamSpaceId;
-  const resolvedActiveItem = activeProjectSlug
-    ? "favorites"
-    : activeTeamSpaceId
-      ? `team-${activeTeamSpaceId}`
-      : isHomeActive
-        ? "home"
-        : activeItem;
-  const isTeamSectionActive =
-    Boolean(activeTeamSpaceId) ||
-    resolvedActiveItem === "team-spaces" ||
-    teamSpaces.some((space) => resolvedActiveItem === `team-${space.id}`);
-  const showFavoritesSection = isFavoritesExpanded || Boolean(activeProjectSlug);
 
   const handleLogout = async () => {
     await signOut();
     router.push("/");
   };
 
-  const handleCreateTeamSpace = ({
-    name,
-    visibility,
-  }: {
-    name: string;
-    visibility: TeamSpaceVisibility;
-  }) => {
-    const id = getTeamSpaceId(name);
-    setTeamSpaces((previous) => [...previous, { id, name, visibility }]);
-    setIsTeamExpanded(true);
-    setActiveItem(`team-${id}`);
-    router.push(`${workspaceHomePath}/team-space/${encodeURIComponent(id)}`);
-  };
-
-  const handleRenameTeamSpace = (spaceId: string) => {
-    const target = teamSpaces.find((space) => space.id === spaceId);
-    if (!target) return;
-
-    const nextName = window.prompt("Rename Team Space", target.name);
-    const normalizedName = nextName?.trim();
-    if (!normalizedName) return;
-
-    setTeamSpaces((previous) =>
-      previous.map((space) => (space.id === spaceId ? { ...space, name: normalizedName } : space))
-    );
-  };
-
-  const handleDeleteTeamSpace = (spaceId: string) => {
-    setTeamSpaces((previous) => previous.filter((space) => space.id !== spaceId));
-    setActiveItem((previous) => (previous === `team-${spaceId}` ? "team-spaces" : previous));
-    if (activeTeamSpaceId === spaceId) {
-      router.push(workspaceHomePath);
-    }
-  };
-
-  const handleCustomizeWorkspace = async (payload: WorkspaceCustomizationPayload) => {
-    const previousState = {
-      name: workspaceDisplayName,
-      type: workspaceType,
-      size: workspaceSize,
-      companySpaceEnabled: isCompanySpaceEnabled,
-    };
-
-    setWorkspaceDisplayName(payload.name);
-    setWorkspaceType(payload.type);
-    setWorkspaceSize(payload.size);
-    setIsCompanySpaceEnabled(payload.companySpaceEnabled);
-
-    if (!workspaceId) return;
-
-    try {
-      const response = await fetch(`/api/workspaces/${workspaceId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: payload.name,
-          type: payload.type,
-          size: payload.size,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update workspace");
-      }
-    } catch (error) {
-      console.error("Failed to customize workspace:", error);
-      setWorkspaceDisplayName(previousState.name);
-      setWorkspaceType(previousState.type);
-      setWorkspaceSize(previousState.size);
-      setIsCompanySpaceEnabled(previousState.companySpaceEnabled);
-      window.alert("Could not save workspace customization. Please try again.");
-    }
-  };
-
-  const navItemClassName =
-    "h-9 rounded-lg px-2.5 text-[13px] font-medium text-slate-600 transition-colors duration-200 hover:bg-slate-200/75 hover:text-slate-900 data-[active=true]:bg-blue-50 data-[active=true]:text-blue-700 data-[active=true]:shadow-[inset_0_0_0_1px_rgba(37,99,235,0.2)]";
-  const iconClassName = "h-4 w-4 text-slate-500";
+  const menuItems = [
+    { label: "Search", icon: SearchIcon, shortcut: "⌘K", action: () => { } },
+    { label: "AI Assistant", icon: Sparkles, color: "text-purple-500", action: () => { } },
+    { label: "Inbox", icon: Inbox, badge: 3, action: () => { } },
+    { label: "All Updates", icon: Bell, action: () => { } },
+  ];
 
   return (
-    <ShadcnSidebar
-      collapsible="icon"
-      className="border-r border-slate-200/80 bg-[#F7F7F8] text-slate-800 [font-family:Inter,ui-sans-serif,system-ui,sans-serif]"
-    >
-      <SidebarHeader className="border-b border-slate-200/80 px-3 py-3">
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="group flex h-10 flex-1 items-center gap-2 rounded-lg border border-slate-200/90 bg-white px-2.5 transition-colors hover:bg-slate-50 group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-              >
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-600 text-[10px] font-bold uppercase text-white">
+    <ShadcnSidebar className="border-r border-slate-200 bg-[#fbfbfa] dark:border-slate-800 dark:bg-[#191919]">
+      {/* Workspace Switcher */}
+      <SidebarHeader className="p-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="group flex w-full items-center justify-between rounded-lg p-2 transition-all hover:bg-slate-200/50 dark:hover:bg-white/5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-[#2b6cee] text-[10px] font-bold text-white shadow-sm uppercase">
                   {initials}
                 </div>
-                <div className="min-w-0 text-left group-data-[collapsible=icon]:hidden">
-                  <p className="truncate text-sm font-semibold text-slate-800">{workspaceDisplayName}</p>
-                  <p className="truncate text-[11px] text-slate-500">Workspace</p>
+                <div className="text-left">
+                  <p className="text-sm font-semibold leading-none text-slate-700 dark:text-gray-200 truncate max-w-[120px]">
+                    {currentWorkspace?.name || "Workspace"}
+                  </p>
                 </div>
-                <ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 rounded-lg border-slate-200 bg-white" align="start" side="bottom">
-              <DropdownMenuLabel className="text-xs text-slate-500">{user?.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {workspaces.map((ws) => (
-                <DropdownMenuItem key={ws._id} onClick={() => router.push(`/workspace/${ws._id}`)}>
-                  <div className="flex w-full items-center gap-2">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[9px] font-semibold uppercase text-slate-700">
-                      {getInitial(ws.name)}
-                    </div>
-                    <span className="flex-1 truncate text-slate-700">
-                      {ws._id === currentWorkspace?._id ? workspaceDisplayName : ws.name}
-                    </span>
-                    {ws._id === currentWorkspace?._id ? (
-                      <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                    ) : null}
+              </div>
+              <ChevronDown className="h-3 w-3 text-slate-400 group-hover:text-slate-600" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-64" align="start" side="bottom">
+            <DropdownMenuLabel className="text-xs text-gray-500">{user?.email}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {workspaces.map((ws) => (
+              <DropdownMenuItem key={ws._id} onClick={() => router.push(`/workspace/${ws._id}`)}>
+                <div className="flex items-center gap-2 w-full">
+                  <div className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 dark:bg-gray-800 text-[8px] font-bold">
+                    {ws.name.charAt(0)}
                   </div>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setIsCustomizeWorkspaceOpen(true)}>
-                <Settings className="h-4 w-4" />
-                Customize Workspace
+                  <span className="flex-1 truncate">{ws.name}</span>
+                  {ws._id === currentWorkspace?._id && <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
+                </div>
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-9 w-9 rounded-lg border border-transparent text-slate-500 hover:border-slate-200 hover:bg-white hover:text-slate-800"
-          >
-            <PanelLeft className="h-4 w-4" />
-            <span className="sr-only">Collapse sidebar</span>
-          </Button>
-        </div>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push('/onboarding')}>
+              <Plus className="mr-2 h-4 w-4" />
+              <span>Create Workspace</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarHeader>
 
-      <SidebarContent className="gap-0 px-3 py-3">
-        <SidebarGroup className="p-0">
+      <SidebarContent className="px-3 gap-0">
+        {/* Top Actions */}
+        <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Home"
-                  isActive={resolvedActiveItem === "home"}
-                  className={navItemClassName}
-                  onClick={() => {
-                    setActiveItem("home");
-                    router.push(workspaceHomePath);
-                  }}
-                >
-                  <Home className={iconClassName} />
-                  <span>Home</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="My Space"
-                  isActive={resolvedActiveItem === "my-space"}
-                  className={navItemClassName}
-                  onClick={() => setActiveItem("my-space")}
-                >
-                  <Lock className={iconClassName} />
-                  <span>My Space</span>
-                </SidebarMenuButton>
-                <p className="px-3 pt-1 text-[11px] text-slate-400 group-data-[collapsible=icon]:hidden">
-                  Private space, cannot be deleted
-                </p>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Team Spaces"
-                  isActive={isTeamSectionActive}
-                  className={navItemClassName}
-                  onClick={() => {
-                    setActiveItem("team-spaces");
-                    setIsTeamExpanded((open) => !open);
-                  }}
-                >
-                  <Users className={iconClassName} />
-                  <span>Team Spaces</span>
-                  <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:hidden">
-                    <button
-                      type="button"
-                      aria-label="Create Team Space"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setIsCreateTeamSpaceOpen(true);
-                      }}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                    {isTeamExpanded ? (
-                      <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            <SidebarMenu>
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.label}>
+                  <SidebarMenuButton className="h-8 hover:bg-slate-200/50 dark:hover:bg-white/5 group">
+                    <item.icon className={cn("h-4 w-4", item.color || "text-slate-500")} />
+                    <span className="text-sm font-medium text-slate-600 dark:text-gray-300">{item.label}</span>
+                    {item.shortcut && (
+                      <span className="ml-auto text-[10px] text-slate-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+                        {item.shortcut}
+                      </span>
                     )}
-                  </div>
-                </SidebarMenuButton>
-
-                {isTeamExpanded && (
-                  <SidebarMenuSub className="mt-1 border-slate-200">
-                    {teamSpaces.map((space) => (
-                      <SidebarMenuSubItem key={space.id} className="group/team relative">
-                        <SidebarMenuSubButton
-                          isActive={resolvedActiveItem === `team-${space.id}`}
-                          onClick={() => {
-                            setActiveItem(`team-${space.id}`);
-                            router.push(`${workspaceHomePath}/team-space/${encodeURIComponent(space.id)}`);
-                          }}
-                          className="h-8 rounded-lg pr-9 text-[12px] text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-blue-50 data-[active=true]:text-blue-700"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                          <span className="truncate">{space.name}</span>
-                        </SidebarMenuSubButton>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label={`${space.name} options`}
-                              className={cn(
-                                "absolute top-1.5 right-1 inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 opacity-0 transition-all hover:bg-slate-200 hover:text-slate-700",
-                                "group-hover/team:opacity-100 group-focus-within/team:opacity-100"
-                              )}
-                            >
-                              <MoreHorizontal className="h-3.5 w-3.5" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            side="right"
-                            className="w-40 rounded-lg border-slate-200 bg-white"
-                          >
-                            <DropdownMenuLabel className="text-xs text-slate-500">
-                              {formatVisibility(space.visibility)}
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleRenameTeamSpace(space.id)}>
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setActiveItem(`team-${space.id}`);
-                                router.push(`${workspaceHomePath}/team-space/${encodeURIComponent(space.id)}`);
-                              }}
-                            >
-                              Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => handleDeleteTeamSpace(space.id)}
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </SidebarMenuSubItem>
-                    ))}
-                  </SidebarMenuSub>
-                )}
-              </SidebarMenuItem>
-
-              {isCompanySpaceEnabled ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Company Space"
-                    isActive={resolvedActiveItem === "company-space"}
-                    className={navItemClassName}
-                    onClick={() => setActiveItem("company-space")}
-                  >
-                    <Globe className={iconClassName} />
-                    <span>Company Space</span>
+                    {item.badge && (
+                      <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                        {item.badge}
+                      </span>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ) : null}
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator className="my-3 bg-slate-200/80" />
-
-        <SidebarGroup className="p-0">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            Workspace
+        {/* Favorites */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-[11px] font-semibold text-slate-500 uppercase flex items-center gap-1.5">
+            <Star size={12} /> Favorites
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
+            <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Favorites"
-                  isActive={resolvedActiveItem === "favorites"}
-                  className={navItemClassName}
-                  onClick={() => {
-                    setActiveItem("favorites");
-                    setIsFavoritesExpanded((open) => !open);
-                  }}
-                >
-                  <Star className={iconClassName} />
-                  <span>Favorites</span>
-                  {isFavoritesExpanded ? (
-                    <ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
-                  ) : (
-                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
-                  )}
-                </SidebarMenuButton>
-                {showFavoritesSection && (
-                  <SidebarMenuSub className="mt-1 border-slate-200">
-                    {favoriteProjects.length > 0 ? (
-                      favoriteProjects.map((project) => (
-                        <SidebarMenuSubItem key={project._id}>
-                          <SidebarMenuSubButton
-                            isActive={activeProjectSlug === project.slug}
-                            onClick={() =>
-                              router.push(
-                                `${workspaceHomePath}?project=${encodeURIComponent(project.slug)}`
-                              )
-                            }
-                            className="h-8 rounded-lg text-[12px] text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-blue-50 data-[active=true]:text-blue-700"
-                          >
-                            <Star className="h-3.5 w-3.5 text-slate-400" />
-                            <span className="truncate">{project.title}</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-xs text-slate-400">No favorites yet</div>
-                    )}
-                  </SidebarMenuSub>
-                )}
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Search"
-                  isActive={resolvedActiveItem === "search"}
-                  className={navItemClassName}
-                  onClick={() => setActiveItem("search")}
-                >
-                  <Search className={iconClassName} />
-                  <span>Search</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Inbox"
-                  isActive={resolvedActiveItem === "inbox"}
-                  className={navItemClassName}
-                  onClick={() => setActiveItem("inbox")}
-                >
-                  <Inbox className={iconClassName} />
-                  <span>Inbox</span>
-                </SidebarMenuButton>
-                <SidebarMenuBadge className="right-2 rounded-full bg-blue-100 px-1.5 text-[10px] font-semibold text-blue-700">
-                  3
-                </SidebarMenuBadge>
+                <div className="px-3 py-1 text-xs text-slate-400 italic">No favorites yet</div>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Teamspaces Section */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-[11px] font-semibold text-slate-500 uppercase flex items-center justify-between group">
+            <div className="flex items-center gap-1.5">
+              <Users size={12} /> Teamspaces
+            </div>
+            <button className="opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-800 rounded p-0.5 transition-all">
+              <Plus size={14} />
+            </button>
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-8 group">
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-amber-500/10 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                    <Sparkles size={10} />
+                  </div>
+                  <span className="text-sm font-medium">Engineering</span>
+                  <ChevronDown size={14} className="ml-auto text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-8 group">
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-500/10 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                    <Layout size={10} />
+                  </div>
+                  <span className="text-sm font-medium">Marketing</span>
+                  <ChevronDown size={14} className="ml-auto text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-8 group">
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-purple-500/10 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                    <CheckSquare size={10} />
+                  </div>
+                  <span className="text-sm font-medium">Product</span>
+                  <ChevronDown size={14} className="ml-auto text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Workspace Content */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-[11px] font-semibold text-slate-500 uppercase">Workspace</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={(pathname === `/workspace/${currentWorkspace?._id}` || pathname === "/workspace" || pathname === "/") && !activeProjectSlug}
+                  className="h-8"
+                  onClick={() => router.push(`/workspace/${currentWorkspace?._id}`)}
+                >
+                  <Home className="h-4 w-4" />
+                  <span className="text-sm">Home</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="h-8">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-sm">Recent Pages</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Projects */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-[11px] font-semibold text-slate-500 uppercase flex items-center justify-between group">
+            Projects
+            <button
+              onClick={() => router.push(`/createProject?workspaceId=${currentWorkspace?._id}&name=${currentWorkspace?.name}`)}
+              className="opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-800 rounded p-0.5 transition-all"
+            >
+              <Plus size={14} />
+            </button>
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {projects.length > 0 ? (
+                projects.map((project: any) => (
+                  <SidebarMenuItem key={project._id}>
+                    <SidebarMenuButton
+                      isActive={activeProjectSlug === project.slug}
+                      className="h-8 group"
+                      onClick={() => router.push(`/workspace/${currentWorkspace?._id}?project=${project.slug}`)}
+                    >
+                      <Layout className={cn("h-4 w-4", activeProjectSlug === project.slug ? "text-blue-500" : "text-slate-400")} />
+                      <span className="text-sm truncate flex-1">{project.title}</span>
+                      <button className="opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all">
+                        <MoreHorizontal size={12} />
+                      </button>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              ) : (
+                <div className="px-3 py-1 text-xs text-slate-400">No projects</div>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Private Section */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-[11px] font-semibold text-slate-500 uppercase">Private</SidebarGroupLabel>
+          <button className="mx-3 mt-1 flex items-center gap-2 rounded-md border border-dashed border-slate-300 dark:border-slate-700 p-2 text-xs text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
+            <Plus size={12} />
+            New Page
+          </button>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-slate-200/80 bg-[#F7F7F8] px-3 py-3">
-        <div className="rounded-lg border border-slate-200/90 bg-white p-2">
-          <div className="flex items-center gap-2 rounded-md p-1">
-            <Avatar className="h-8 w-8 border border-slate-200">
-              <AvatarImage src={user?.imageUrl ?? undefined} />
-              <AvatarFallback className="bg-slate-800 text-[10px] font-semibold text-white">
-                {getInitial(user?.firstName, "U")}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-xs font-semibold text-slate-800">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="truncate text-[11px] text-slate-500">{user?.email}</p>
-            </div>
-          </div>
-
-          <div className="mt-2 flex gap-1 group-data-[collapsible=icon]:mt-1 group-data-[collapsible=icon]:justify-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 flex-1 justify-start rounded-lg text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center"
-              onClick={() => setIsCustomizeWorkspaceOpen(true)}
-            >
-              <Settings className="h-3.5 w-3.5" />
-              <span className="group-data-[collapsible=icon]:hidden">Settings</span>
+      <SidebarFooter className="p-3 border-t border-slate-200 dark:border-slate-800 bg-[#fbfbfa] dark:bg-[#191919]">
+        <div className="flex items-center gap-2 mb-3">
+          <TooltipProvider>
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-slate-200/50 dark:hover:bg-white/5 text-slate-500">
+              <Settings size={14} />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-slate-200/50 dark:hover:bg-white/5 text-slate-500">
+              <CircleHelp size={14} />
             </Button>
             <Button
-              type="button"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               variant="ghost"
-              size="sm"
-              className="h-8 flex-1 justify-start rounded-lg text-xs text-slate-600 hover:bg-red-50 hover:text-red-600 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center"
-              onClick={handleLogout}
+              size="icon"
+              className="h-7 w-7 rounded-md hover:bg-slate-200/50 dark:hover:bg-white/5 text-slate-500"
             >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+              <span className="sr-only">Toggle theme</span>
+              {theme === "dark" ? (
+                <Sun size={14} className="transition-all" />
+              ) : (
+                <Moon size={14} className="transition-all" />
+              )}
             </Button>
-          </div>
+          </TooltipProvider>
         </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex w-full items-center gap-2 rounded-lg p-1.5 transition-all hover:bg-slate-200/50 dark:hover:bg-white/5">
+              <Avatar className="h-6 w-6 border border-slate-200 dark:border-slate-700">
+                <AvatarImage src={user?.imageUrl} />
+                <AvatarFallback className="bg-[#2b6cee] text-[10px] text-white font-bold">
+                  {user?.firstName?.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-left flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-700 dark:text-gray-200 truncate">
+                  {user?.firstName} {user?.lastName}
+                </p>
+              </div>
+              <ChevronDown className="h-3 w-3 text-slate-400" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" side="top">
+            <DropdownMenuItem className="text-xs">Profile</DropdownMenuItem>
+            <DropdownMenuItem className="text-xs">Settings</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-xs text-red-600" onClick={handleLogout}>
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
-
-      <SidebarRail />
-
-      <CreateTeamSpaceDialog
-        open={isCreateTeamSpaceOpen}
-        onOpenChange={setIsCreateTeamSpaceOpen}
-        onCreate={handleCreateTeamSpace}
-      />
-      <CustomizeWorkspaceDialog
-        open={isCustomizeWorkspaceOpen}
-        onOpenChange={setIsCustomizeWorkspaceOpen}
-        initialValues={{
-          name: workspaceDisplayName,
-          type: workspaceType,
-          size: workspaceSize,
-          companySpaceEnabled: isCompanySpaceEnabled,
-        }}
-        onSave={handleCustomizeWorkspace}
-      />
     </ShadcnSidebar>
   );
 }

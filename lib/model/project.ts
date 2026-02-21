@@ -46,6 +46,10 @@ const projectSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
     },
+    teamSpaceId: {
+        type: String,
+        default: null,
+    },
     sheets: {
         type: [sheetSchema],
         default: [{ name: 'Default Sheet', tasks: [] }]
@@ -61,5 +65,6 @@ const projectSchema = new mongoose.Schema({
 });
 
 projectSchema.index({ workspace: 1, slug: 1 }, { unique: true });
+projectSchema.index({ workspace: 1, teamSpaceId: 1 });
 
 export const Project = mongoose.models.Project || mongoose.model('Project', projectSchema);

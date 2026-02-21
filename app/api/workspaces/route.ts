@@ -50,6 +50,7 @@ export async function POST(req: Request) {
             type: type || 'organization',
             owner: dbUser._id,
             members: [{ user: dbUser._id, role: 'Admin' }],
+            teamSpaces: [{ id: 'general', name: 'General', visibility: 'open', archived: false }],
         });
 
         // Update Clerk user metadata with workspace ID

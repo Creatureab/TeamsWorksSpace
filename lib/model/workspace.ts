@@ -1,5 +1,33 @@
 import mongoose from 'mongoose';
 
+const teamSpaceSchema = new mongoose.Schema({
+    id: {
+        type: String,
+        required: true,
+    },
+    name: {
+        type: String,
+        required: true,
+    },
+    visibility: {
+        type: String,
+        enum: ['open', 'closed', 'private'],
+        default: 'open',
+    },
+    archived: {
+        type: Boolean,
+        default: false,
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now,
+    },
+}, { _id: false });
+
 const workspaceSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -53,6 +81,10 @@ const workspaceSchema = new mongoose.Schema({
             default: Date.now,
         }
     }],
+    teamSpaces: {
+        type: [teamSpaceSchema],
+        default: [{ id: 'general', name: 'General', visibility: 'open', archived: false }],
+    },
     createdAt: {
         type: Date,
         default: Date.now,
