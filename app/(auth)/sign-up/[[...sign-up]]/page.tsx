@@ -1,20 +1,5 @@
-import { SignUp } from "@clerk/nextjs";
-import AuthShell from "@/components/auth/AuthShell";
+import { redirect } from "next/navigation";
 
 export default function SignUpPage() {
-    return (
-        <AuthShell
-            title="Create your account"
-            description="Join thousands of teams using Workspace to organize their work and collaborate better."
-            footerText="Already have an account?"
-            footerCta="Log in"
-            footerHref="/sign-in"
-        >
-            <SignUp
-                routing="path"
-                path="/sign-up"
-                signInUrl="/sign-in"
-            />
-        </AuthShell>
-    );
+    redirect("/signup");
 }

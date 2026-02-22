@@ -4,8 +4,8 @@ export const ROUTES = {
     WORKSPACE_CREATE: '/workspace/create',
     PROJECT_CREATE: '/createProject',
     PROJECT: (workspaceId: string) => `/project/${workspaceId}`,
-    SIGN_IN: '/sign-in',
-    SIGN_UP: '/sign-up',
+    SIGN_IN: '/login',
+    SIGN_UP: '/signup',
 } as const;
 
 export const PUBLIC_ROUTES = [

@@ -67,15 +67,32 @@ export async function PATCH(
     if (incomingName !== undefined) workspace.name = incomingName;
     if (incomingType !== undefined) workspace.type = incomingType;
     if (incomingSize !== undefined) workspace.size = incomingSize;
+
+    const incomingTeamSpaces = body.teamSpaces;
+    if (Array.isArray(incomingTeamSpaces)) {
+      workspace.teamSpaces = incomingTeamSpaces.map((ts: { id: string; name: string; visibility?: string }) => ({
+        id: ts.id,
+        name: ts.name,
+        visibility: ts.visibility ?? 'open',
+      }));
+    }
+
     workspace.updatedAt = new Date();
 
     await workspace.save();
+
+    const teamSpaces = (workspace.teamSpaces ?? []).map((ts: { id: string; name: string; visibility: string }) => ({
+      id: ts.id,
+      name: ts.name,
+      visibility: ts.visibility,
+    }));
 
     return NextResponse.json({
       _id: workspace._id,
       name: workspace.name,
       type: workspace.type,
       size: workspace.size,
+      teamSpaces,
       updatedAt: workspace.updatedAt,
     });
   } catch (error) {

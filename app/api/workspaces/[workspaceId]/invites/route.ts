@@ -35,7 +35,7 @@ export async function POST(
             try {
                 const invitation = await clerk.invitations.createInvitation({
                     emailAddress: email,
-                    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/sign-up`,
+                    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup`,
                     publicMetadata: {
                         workspaceId,
                         role: role || 'Member',

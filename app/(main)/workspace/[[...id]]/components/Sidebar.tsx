@@ -5,15 +5,12 @@ import {
   ChevronRight,
   Globe,
   Home,
-  Inbox,
   Lock,
   LogOut,
   MoreHorizontal,
   PanelLeft,
   Plus,
-  Search,
   Settings,
-  Star,
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,15 +47,25 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import CreateTeamSpaceDialog, { type TeamSpaceVisibility } from "./CreateTeamSpaceDialog";
+import { SpaceSection } from "./SpaceSection";
+import { projectToPage } from "@/lib/utils/page";
+import type { Page } from "@/lib/types/page";
 import CustomizeWorkspaceDialog, {
   type WorkspaceCustomizationPayload,
 } from "./CustomizeWorkspaceDialog";
 
 interface SidebarUser {
+  _id?: string;
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   imageUrl?: string | null;
+}
+
+interface TeamSpaceItem {
+  id: string;
+  name: string;
+  visibility?: string;
 }
 
 interface SidebarWorkspace {
@@ -66,12 +73,21 @@ interface SidebarWorkspace {
   name: string;
   type?: "organization" | "personal";
   size?: "1-5" | "6-20" | "21-50" | "50+";
+  teamSpaces?: TeamSpaceItem[];
 }
 
 interface SidebarProject {
   _id: string;
   slug: string;
   title: string;
+  parentId?: string | null;
+  order?: number;
+  spaceId?: string | null;
+  spaceType?: string;
+  icon?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  workspace?: string;
 }
 
 interface SidebarProps {
@@ -81,13 +97,7 @@ interface SidebarProps {
   projects?: SidebarProject[];
 }
 
-interface TeamSpace {
-  id: string;
-  name: string;
-  visibility: TeamSpaceVisibility;
-}
-
-const initialTeamSpaces: TeamSpace[] = [
+const initialTeamSpaces: TeamSpaceItem[] = [
   { id: "general", name: "General", visibility: "open" },
   { id: "marketing", name: "Marketing", visibility: "closed" },
   { id: "engineering", name: "Engineering", visibility: "private" },
@@ -130,10 +140,11 @@ export default function Sidebar({
 
   const [activeItem, setActiveItem] = useState("home");
   const [isTeamExpanded, setIsTeamExpanded] = useState(true);
-  const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
+  const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [isCreateTeamSpaceOpen, setIsCreateTeamSpaceOpen] = useState(false);
   const [isCustomizeWorkspaceOpen, setIsCustomizeWorkspaceOpen] = useState(false);
-  const [teamSpaces, setTeamSpaces] = useState<TeamSpace[]>(initialTeamSpaces);
+  const workspaceTeamSpaces = (currentWorkspace?.teamSpaces?.length ? currentWorkspace.teamSpaces : initialTeamSpaces) as TeamSpaceItem[];
+  const [teamSpaces, setTeamSpaces] = useState<TeamSpaceItem[]>(workspaceTeamSpaces);
   const [workspaceDisplayName, setWorkspaceDisplayName] = useState(workspaceNameFromProps);
   const [workspaceType, setWorkspaceType] = useState<"organization" | "personal">(workspaceTypeFromProps);
   const [workspaceSize, setWorkspaceSize] = useState<"1-5" | "6-20" | "21-50" | "50+">(workspaceSizeFromProps);
@@ -145,17 +156,39 @@ export default function Sidebar({
     setWorkspaceSize(workspaceSizeFromProps);
   }, [workspaceId, workspaceNameFromProps, workspaceSizeFromProps, workspaceTypeFromProps]);
 
+  useEffect(() => {
+    if (currentWorkspace?.teamSpaces?.length) {
+      setTeamSpaces(currentWorkspace.teamSpaces as TeamSpaceItem[]);
+    }
+  }, [currentWorkspace?.teamSpaces]);
+
+  const { setExpandedSpaceIds, expandedSpaceIds, setPages } = useSidebarStore();
+  useEffect(() => {
+    setPages(pages);
+  }, [pages, setPages]);
+  useEffect(() => {
+    const spaceIds = [
+      mySpaceId,
+      companySpaceId,
+      ...teamSpaces.map((t) => `team-space-${t.id}`),
+    ].filter(Boolean);
+    const current = new Set(expandedSpaceIds);
+    const toAdd = spaceIds.filter((id) => !current.has(id));
+    if (toAdd.length > 0) {
+      setExpandedSpaceIds(new Set([...current, ...toAdd]));
+    }
+  }, [mySpaceId, companySpaceId, teamSpaces, expandedSpaceIds, setExpandedSpaceIds]);
+
   const initials = getInitial(workspaceDisplayName);
 
   const workspaceHomePath = workspaceId ? `/workspace/${workspaceId}` : "/workspace";
-  const favoriteProjects = projects.slice(0, 4);
 
   const isHomeActive =
     (pathname === workspaceHomePath || pathname === "/workspace" || pathname === "/") &&
     !activeProjectSlug &&
     !activeTeamSpaceId;
-  const resolvedActiveItem = activeProjectSlug
-    ? "favorites"
+  const resolvedActiveItem = pathname.startsWith("/project/")
+    ? "pages"
     : activeTeamSpaceId
       ? `team-${activeTeamSpaceId}`
       : isHomeActive
@@ -165,14 +198,89 @@ export default function Sidebar({
     Boolean(activeTeamSpaceId) ||
     resolvedActiveItem === "team-spaces" ||
     teamSpaces.some((space) => resolvedActiveItem === `team-${space.id}`);
-  const showFavoritesSection = isFavoritesExpanded || Boolean(activeProjectSlug);
+
+  // Resolve active project ID (for /project/[id] or ?project=slug)
+  const activeProjectId =
+    pathname.startsWith("/project/") && pathnameParts[1]
+      ? pathnameParts[1]
+      : activeProjectSlug
+        ? projects.find((p) => p.slug === activeProjectSlug)?._id ?? null
+        : null;
+
+
+  const userId = (user as { _id?: string })?._id ?? "";
+  const mySpaceId = userId ? `my-space-${userId}` : "";
+  const companySpaceId = workspaceId ? `company-space-${workspaceId}` : "";
+
+  const pages: Page[] = projects.map((p) =>
+    projectToPage(
+      {
+        ...p,
+        workspace: workspaceId,
+        spaceId: p.spaceId ?? `company-space-${workspaceId}`,
+        spaceType: p.spaceType ?? "company-space",
+      },
+      workspaceId
+    )
+  );
+
+  const handleCreatePage = async (parentId: string | null, spaceId: string) => {
+    if (!workspaceId || isCreatingPage) return;
+    setIsCreatingPage(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          parentId: parentId || undefined,
+          title: "Untitled",
+          spaceId,
+          spaceType: spaceId.startsWith("my-space") ? "my-space" : spaceId.startsWith("team-space") ? "team-space" : "company-space",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create");
+      const data = await res.json();
+      router.push(`/project/${data._id}`);
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to create page:", err);
+    } finally {
+      setIsCreatingPage(false);
+    }
+  };
+
+  const handleRenamePage = async (id: string, title: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (!res.ok) throw new Error("Failed to rename");
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to rename:", err);
+    }
+  };
+
+  const handleDeletePage = async (id: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      if (activeProjectId === id) router.push(workspaceHomePath);
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to delete:", err);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
     router.push("/");
   };
 
-  const handleCreateTeamSpace = ({
+  const handleCreateTeamSpace = async ({
     name,
     visibility,
   }: {
@@ -180,9 +288,27 @@ export default function Sidebar({
     visibility: TeamSpaceVisibility;
   }) => {
     const id = getTeamSpaceId(name);
-    setTeamSpaces((previous) => [...previous, { id, name, visibility }]);
+    const newTeam = { id, name, visibility };
+    setTeamSpaces((previous) => [...previous, newTeam]);
     setIsTeamExpanded(true);
     setActiveItem(`team-${id}`);
+    if (workspaceId) {
+      try {
+        const updated = [...teamSpaces, newTeam];
+        await fetch(`/api/workspaces/${workspaceId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: workspaceDisplayName,
+            type: workspaceType,
+            size: workspaceSize,
+            teamSpaces: updated,
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to persist team space:", err);
+      }
+    }
     router.push(`${workspaceHomePath}/team-space/${encodeURIComponent(id)}`);
   };
 
@@ -463,81 +589,52 @@ export default function Sidebar({
 
         <SidebarGroup className="p-0">
           <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            Workspace
+            Pages
           </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Favorites"
-                  isActive={resolvedActiveItem === "favorites"}
-                  className={navItemClassName}
-                  onClick={() => {
-                    setActiveItem("favorites");
-                    setIsFavoritesExpanded((open) => !open);
-                  }}
-                >
-                  <Star className={iconClassName} />
-                  <span>Favorites</span>
-                  {isFavoritesExpanded ? (
-                    <ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
-                  ) : (
-                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
-                  )}
-                </SidebarMenuButton>
-                {showFavoritesSection && (
-                  <SidebarMenuSub className="mt-1 border-slate-200">
-                    {favoriteProjects.length > 0 ? (
-                      favoriteProjects.map((project) => (
-                        <SidebarMenuSubItem key={project._id}>
-                          <SidebarMenuSubButton
-                            isActive={activeProjectSlug === project.slug}
-                            onClick={() =>
-                              router.push(
-                                `${workspaceHomePath}?project=${encodeURIComponent(project.slug)}`
-                              )
-                            }
-                            className="h-8 rounded-lg text-[12px] text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-blue-50 data-[active=true]:text-blue-700"
-                          >
-                            <Star className="h-3.5 w-3.5 text-slate-400" />
-                            <span className="truncate">{project.title}</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-xs text-slate-400">No favorites yet</div>
-                    )}
-                  </SidebarMenuSub>
-                )}
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Search"
-                  isActive={resolvedActiveItem === "search"}
-                  className={navItemClassName}
-                  onClick={() => setActiveItem("search")}
-                >
-                  <Search className={iconClassName} />
-                  <span>Search</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Inbox"
-                  isActive={resolvedActiveItem === "inbox"}
-                  className={navItemClassName}
-                  onClick={() => setActiveItem("inbox")}
-                >
-                  <Inbox className={iconClassName} />
-                  <span>Inbox</span>
-                </SidebarMenuButton>
-                <SidebarMenuBadge className="right-2 rounded-full bg-blue-100 px-1.5 text-[10px] font-semibold text-blue-700">
-                  3
-                </SidebarMenuBadge>
-              </SidebarMenuItem>
-            </SidebarMenu>
+          <SidebarGroupContent className="space-y-0">
+            {mySpaceId && (
+              <SpaceSection
+                spaceId={mySpaceId}
+                spaceName="My Space"
+                spaceType="my-space"
+                pages={pages}
+                workspaceId={workspaceId}
+                activePageId={activeProjectId}
+                onCreatePage={handleCreatePage}
+                onRename={handleRenamePage}
+                onDelete={handleDeletePage}
+              />
+            )}
+            {teamSpaces.map((team) => {
+              const teamSpaceId = `team-space-${team.id}`;
+              return (
+                <SpaceSection
+                  key={team.id}
+                  spaceId={teamSpaceId}
+                  spaceName={team.name}
+                  spaceType="team-space"
+                  pages={pages}
+                  workspaceId={workspaceId}
+                  activePageId={activeProjectId}
+                  onCreatePage={handleCreatePage}
+                  onRename={handleRenamePage}
+                  onDelete={handleDeletePage}
+                />
+              );
+            })}
+            {companySpaceId && (
+              <SpaceSection
+                spaceId={companySpaceId}
+                spaceName="Company Space"
+                spaceType="company-space"
+                pages={pages}
+                workspaceId={workspaceId}
+                activePageId={activeProjectId}
+                onCreatePage={handleCreatePage}
+                onRename={handleRenamePage}
+                onDelete={handleDeletePage}
+              />
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

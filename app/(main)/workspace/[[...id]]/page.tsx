@@ -19,7 +19,7 @@ export default async function WorkspacePage({
   const { id } = await params;
   const { project: projectSlug } = await searchParams;
   const user = await syncUser();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect("/login");
 
   await dbConnect();
 
@@ -37,7 +37,9 @@ export default async function WorkspacePage({
     redirect("/workspace/create");
   }
 
-  const projects = await Project.find({ workspace: currentWorkspace._id }).lean();
+  const projects = await Project.find({ workspace: currentWorkspace._id })
+    .sort({ order: 1, createdAt: 1 })
+    .lean();
 
   // 3. Find active project if slug is present
   let activeProject = null;

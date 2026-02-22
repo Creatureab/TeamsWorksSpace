@@ -58,13 +58,13 @@ export default function HomeHeader() {
               className="text-gray-700 shadow-none hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-white/5"
               variant="ghost"
             >
-              <Link href="/sign-in">Log in</Link>
+              <Link href="/login">Log in</Link>
             </Button>
             <Button
               asChild
               className="bg-[#3b19e6] text-white shadow-lg shadow-[#3b19e6]/20 hover:bg-[#3015c4]"
             >
-              <Link href="/sign-up">Get Started</Link>
+              <Link href="/signup">Get Started</Link>
             </Button>
           </SignedOut>
           <SignedIn>

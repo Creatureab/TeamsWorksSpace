@@ -21,6 +21,28 @@ const projectSchema = new mongoose.Schema({
         ref: 'Workspace',
         required: true,
     },
+    parentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Project',
+        default: null,
+    },
+    order: {
+        type: Number,
+        default: 0,
+    },
+    spaceId: {
+        type: String,
+        default: null,
+    },
+    spaceType: {
+        type: String,
+        enum: ['my-space', 'team-space', 'company-space'],
+        default: 'company-space',
+    },
+    icon: {
+        type: String,
+        default: null,
+    },
     title: {
         type: String,
         required: true,
