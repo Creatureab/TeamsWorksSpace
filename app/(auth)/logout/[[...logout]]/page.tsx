@@ -34,7 +34,7 @@ export default function LogoutPage() {
         };
 
         performLogout();
-    }, [signOut]);
+    }, [router, signOut]);
 
     if (status === "logging_out") {
         return (
@@ -79,7 +79,7 @@ export default function LogoutPage() {
             description="Come back soon! Your collaborative workspace is always waiting for you."
             footerText="Need to log back in?"
             footerCta="Sign In"
-            footerHref="/login"
+            footerHref="/sign-in"
         >
             <div className="space-y-8">
                 <div className="flex justify-center">
@@ -90,7 +90,7 @@ export default function LogoutPage() {
 
                 <div className="grid gap-3">
                     <Button asChild className="bg-[#3b19e6] py-6 font-bold text-white hover:bg-[#3015c4]">
-                        <Link href="/login">Sign In Again</Link>
+                        <Link href="/sign-in">Sign In Again</Link>
                     </Button>
                     <Button asChild variant="outline" className="py-6 border-slate-200">
                         <Link href="/">Return to Home</Link>

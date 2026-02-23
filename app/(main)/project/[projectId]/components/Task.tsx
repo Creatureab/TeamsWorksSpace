@@ -2,7 +2,7 @@
 
 import { Editor } from '@/components/editor/Editor';
 import { Block } from '@/components/editor/types';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
     ImageIcon,
     MoreHorizontal,
@@ -17,15 +17,39 @@ import { useParams } from 'next/navigation';
 import { getBlocks, saveBlocks } from '@/lib/actions/blocks';
 import { toast } from 'sonner';
 
+interface TaskUser {
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+}
+
+interface TaskProject {
+    _id?: string;
+    slug?: string;
+    title?: string;
+}
+
+interface TaskWorkspace {
+    _id?: string;
+}
+
 interface TaskProps {
-    user: any;
-    project: any;
-    currentWorkspace: any;
+    user: TaskUser | null;
+    project: TaskProject | null;
+    currentWorkspace: TaskWorkspace | null;
 }
 
 const Task = ({ user, project, currentWorkspace }: TaskProps) => {
-    const params = useParams();
-    const pageId = Array.isArray(params.id) ? params.id[0] : (project?.slug || 'default-page');
+    const params = useParams<{ projectId?: string; id?: string | string[] }>();
+    const routeProjectId =
+        typeof params.projectId === 'string'
+            ? params.projectId
+            : Array.isArray(params.id)
+                ? params.id[0]
+                : typeof params.id === 'string'
+                    ? params.id
+                    : undefined;
+    const pageId = routeProjectId || project?._id || project?.slug || 'default-page';
     const workspaceId = currentWorkspace?._id || 'default-workspace';
 
     const [blocks, setBlocks] = useState<Block[]>([]);
@@ -136,9 +160,11 @@ const Task = ({ user, project, currentWorkspace }: TaskProps) => {
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[10px] text-white font-bold uppercase">
-                                {user?.name?.charAt(0) || 'U'}
+                                {(user?.name || user?.firstName || 'U').charAt(0)}
                             </div>
-                            <span className="text-sm dark:text-gray-200">{user?.name || 'Unassigned'}</span>
+                            <span className="text-sm dark:text-gray-200">
+                                {user?.name || user?.firstName || 'Unassigned'}
+                            </span>
                         </div>
                     </div>
 

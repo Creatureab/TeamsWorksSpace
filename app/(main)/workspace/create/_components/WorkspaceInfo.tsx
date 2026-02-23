@@ -19,7 +19,7 @@ import {
 
 const teamSizes = ["1-5", "6-20", "21-50", "50+"];
 
-type WorkSpaceInfoProps = {
+type WorkspaceInfoProps = {
   onContinue?: (workspaceType: string) => void;
 };
 
@@ -39,7 +39,7 @@ const slugifyWorkspaceUrl = (value: string) =>
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 
-const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
+const WorkspaceInfo = ({ onContinue }: WorkspaceInfoProps) => {
   const router = useRouter();
   const { isLoaded, user } = useUser();
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
@@ -242,4 +242,4 @@ const WorkSpaceInfo = ({ onContinue }: WorkSpaceInfoProps) => {
   );
 };
 
-export default WorkSpaceInfo;
+export default WorkspaceInfo;

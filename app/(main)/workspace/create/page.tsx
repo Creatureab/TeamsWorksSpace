@@ -1,7 +1,7 @@
 "use client";
 
-import WorkSpaceInfo from "./components/WorkSpaceInfo";
-import InvitesPage from "./components/Invites";
+import WorkspaceInfo from "./_components/WorkspaceInfo";
+import InvitesPage from "./_components/Invites";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -13,7 +13,7 @@ const WorkspacePage = () => {
   return (
     <main>
       {step === "workspace" ? (
-        <WorkSpaceInfo
+        <WorkspaceInfo
           onContinue={(id) => {
             setWorkspaceId(id);
             setStep("invites");

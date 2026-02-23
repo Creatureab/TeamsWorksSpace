@@ -3,7 +3,6 @@
 import {
   ArrowRight,
   ChevronRight,
-  FolderPlus,
   History,
   Home,
   Plus,
@@ -39,6 +38,23 @@ interface HeroProps {
   } | null;
   projects?: HeroProject[];
 }
+
+const formatActivityTime = (updatedAt?: string) => {
+  if (!updatedAt) return "Updated recently";
+
+  const updatedDate = new Date(updatedAt);
+  if (Number.isNaN(updatedDate.getTime())) return "Updated recently";
+
+  const now = Date.now();
+  const diffMs = now - updatedDate.getTime();
+  const hourMs = 1000 * 60 * 60;
+  const dayMs = hourMs * 24;
+
+  if (diffMs < hourMs) return "Updated just now";
+  if (diffMs < dayMs) return `Updated ${Math.floor(diffMs / hourMs)}h ago`;
+  if (diffMs < dayMs * 7) return `Updated ${Math.floor(diffMs / dayMs)}d ago`;
+  return `Updated ${updatedDate.toLocaleDateString()}`;
+};
 
 const recentlyVisited = [
   {
@@ -179,24 +195,38 @@ export default function Hero({ user, currentWorkspace, projects = [] }: HeroProp
               <Badge variant="outline" className="font-medium text-gray-500">Live Updates</Badge>
             </div>
             {projects.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-2">
                 {projects.slice(0, 5).map((project) => (
-                  <Link key={project._id} href={`/workspace/${currentWorkspace?._id}?project=${project.slug}`}>
-                    <Card className="group flex items-center justify-between p-4 border-gray-100 dark:border-gray-800 hover:border-[#2b6cee]/30 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-all rounded-xl">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50/50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400">
-                          <Layout className="h-5 w-5" />
+                  <Link
+                    key={project._id}
+                    href={`/workspace/${currentWorkspace?._id}?project=${encodeURIComponent(project.slug)}`}
+                    className="block"
+                  >
+                    <Card className="group rounded-xl border-slate-200/90 bg-white p-0 shadow-none transition-all hover:border-[#2b6cee]/30 hover:bg-slate-50/70 dark:border-slate-800 dark:bg-[#202020] dark:hover:bg-white/5">
+                      <CardContent className="flex items-center justify-between gap-3 p-3.5">
+                        <div className="min-w-0 flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400">
+                            <Layout className="h-4.5 w-4.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-semibold text-slate-800 transition-colors group-hover:text-[#2b6cee] dark:text-slate-200">
+                              {project.title}
+                            </h3>
+                            <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                              {formatActivityTime(project.updatedAt)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 group-hover:text-[#2b6cee] transition-colors">
-                            {project.title}
-                          </h3>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                            Modified {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : 'N/A'}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="secondary"
+                            className="hidden rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 sm:inline-flex dark:bg-slate-800 dark:text-slate-300"
+                          >
+                            Project
+                          </Badge>
+                          <ChevronRight className="h-4 w-4 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-[#2b6cee]" />
                         </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-[#2b6cee] transition-all group-hover:translate-x-0.5" />
+                      </CardContent>
                     </Card>
                   </Link>
                 ))}

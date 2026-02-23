@@ -14,7 +14,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { title, description, privacy, automation, workspaceId } = body;
+        const { title, description, privacy, automation, workspaceId, teamSpaceId } = body;
 
         // Relation Rules Check: Every project must store workspaceId and createdBy
         if (!title || !workspaceId) {
@@ -41,6 +41,17 @@ export async function POST(req: Request) {
             return new NextResponse('Unauthorized or invalid workspace.', { status: 403 });
         }
 
+        if (teamSpaceId) {
+            const isGeneral = teamSpaceId === 'general';
+            const hasTeamSpace = workspace.teamSpaces?.some(
+                (space: { id: string; archived?: boolean }) => space.id === teamSpaceId && !space.archived
+            );
+
+            if (!isGeneral && !hasTeamSpace) {
+                return new NextResponse('Invalid team space.', { status: 400 });
+            }
+        }
+
         // 4. Generate unique slug within the workspace
         let slug = slugify(title);
         const existingProject = await Project.findOne({ workspace: workspaceId, slug });
@@ -59,6 +70,7 @@ export async function POST(req: Request) {
             automation,
             workspace: workspaceId,
             createdBy: user._id,
+            teamSpaceId: teamSpaceId || null,
             sheets: [{
                 name: 'Tasks',
                 tasks: []
@@ -81,6 +93,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get('workspaceId');
+        const teamSpaceId = searchParams.get('teamSpaceId');
 
         await dbConnect();
 
@@ -102,7 +115,31 @@ export async function GET(req: Request) {
                 return new NextResponse('Unauthorized or invalid workspace.', { status: 403 });
             }
 
-            const projects = await Project.find({ workspace: workspaceId }).sort({ createdAt: -1 });
+            const projectFilter: {
+                workspace: string;
+                $or?: Array<Record<string, unknown>>;
+                teamSpaceId?: string;
+            } = { workspace: workspaceId };
+
+            if (teamSpaceId) {
+                if (teamSpaceId === 'general') {
+                    projectFilter.$or = [
+                        { teamSpaceId: { $exists: false } },
+                        { teamSpaceId: null },
+                        { teamSpaceId: 'general' },
+                    ];
+                } else {
+                    const hasTeamSpace = workspace.teamSpaces?.some(
+                        (space: { id: string; archived?: boolean }) => space.id === teamSpaceId && !space.archived
+                    );
+                    if (!hasTeamSpace) {
+                        return new NextResponse('Invalid team space.', { status: 400 });
+                    }
+                    projectFilter.teamSpaceId = teamSpaceId;
+                }
+            }
+
+            const projects = await Project.find(projectFilter).sort({ createdAt: -1 });
             return NextResponse.json(projects);
         }
 

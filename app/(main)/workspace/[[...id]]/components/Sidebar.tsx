@@ -24,6 +24,8 @@ import {
   Search as SearchIcon,
   Home,
   Sun,
+  Table,
+  ListTodo,
 } from "lucide-react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,6 +55,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -224,12 +229,6 @@ export default function Sidebar({ user, workspaces, currentWorkspace, projects =
                 >
                   <Home className="h-4 w-4" />
                   <span className="text-sm">Home</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="h-8">
-                  <CheckSquare className="h-4 w-4" />
-                  <span className="text-sm">My Tasks</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
