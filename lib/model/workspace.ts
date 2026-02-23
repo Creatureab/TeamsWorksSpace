@@ -35,6 +35,15 @@ const workspaceSchema = new mongoose.Schema({
             default: 'Member',
         }
     }],
+    teamSpaces: {
+        type: [{
+            id: { type: String, required: true },
+            name: { type: String, required: true },
+            visibility: { type: String, enum: ['open', 'closed', 'private'], default: 'open' },
+            createdAt: { type: Date, default: Date.now },
+        }],
+        default: [],
+    },
     pendingInvites: [{
         email: {
             type: String,

@@ -11,7 +11,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 export default async function ProjectPage({ params }: { params: Promise<{ id?: string[] }> }) {
     const { id } = await params;
     const user = await syncUser();
-    if (!user) redirect("/sign-in");
+    if (!user) redirect("/login");
 
     const projectId = id?.[0];
     if (!projectId) redirect("/workspace");
@@ -49,8 +49,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id?: s
         ]
     }).lean();
 
-    // 5. Fetch all projects in the current workspace for the sidebar
-    const projects = await Project.find({ workspace: workspace._id }).lean();
+    // 5. Fetch all projects in the current workspace for the sidebar (sorted for PageTree)
+    const projects = await Project.find({ workspace: workspace._id })
+        .sort({ order: 1, createdAt: 1 })
+        .lean();
 
     // Sanitize data for Client Components
     const serializedUser = JSON.parse(JSON.stringify(user));

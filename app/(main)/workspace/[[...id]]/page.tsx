@@ -19,10 +19,15 @@ export default async function WorkspacePage({
   const { id } = await params;
   const { project: projectSlug } = await searchParams;
   const user = await syncUser();
-  if (!user) redirect("/sign-in");
+  
+  // Require authentication (handled by proxy.ts)
+  if (!user) {
+    redirect("/login");
+  }
 
   await dbConnect();
 
+  // Get user's workspaces
   const workspaces = await Workspace.find({
     $or: [
       { owner: user._id },
@@ -34,10 +39,12 @@ export default async function WorkspacePage({
   const currentWorkspace = workspaces.find(w => w._id.toString() === workspaceId) || workspaces[0];
 
   if (!currentWorkspace && workspaces.length === 0) {
-    redirect("/workspace/create");
+    redirect("/onboarding");
   }
 
-  const projects = await Project.find({ workspace: currentWorkspace._id }).lean();
+  const projects = await Project.find({ workspace: currentWorkspace._id })
+    .sort({ order: 1, createdAt: 1 })
+    .lean();
 
   // 3. Find active project if slug is present
   let activeProject = null;

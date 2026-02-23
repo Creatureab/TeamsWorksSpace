@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, Sparkles, Layout } from "lucide-react";
+import Link from "next/link";
 
 const mockRows = [
   { task: "Mobile Beta Fixes", status: "Done", assignee: "Sarah K.", due: "Aug 12" },
@@ -71,13 +72,17 @@ const HomeHero = () => {
         </p>
 
         <div className="mb-16 flex items-center justify-center gap-4">
-          <Button size="lg" className="bg-[#3b19e6] hover:bg-[#3015c4] text-white px-8 h-12 text-base font-semibold shadow-xl shadow-[#3b19e6]/20">
-            Get started free
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button size="lg" variant="outline" className="px-8 h-12 text-base font-semibold border-gray-200 dark:border-white/10 dark:hover:bg-white/5">
-            Book a demo
-          </Button>
+          <Link href="/signup">
+            <Button size="lg" className="bg-[#3b19e6] hover:bg-[#3015c4] text-white px-8 h-12 text-base font-semibold shadow-xl shadow-[#3b19e6]/20">
+              Get started free
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/login">
+            <Button size="lg" variant="outline" className="px-8 h-12 text-base font-semibold border-gray-200 dark:border-white/10 dark:hover:bg-white/5">
+              Sign in
+            </Button>
+          </Link>
         </div>
 
         <div className="relative mx-auto max-w-6xl text-left">

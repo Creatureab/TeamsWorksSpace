@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { getAuth, clerkClient } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
 import { Workspace } from "@/lib/model/workspace";
 import { User } from "@/lib/model/user";
 
 export async function POST(req: Request) {
     try {
-        const { userId: clerkId } = await auth();
+        const { userId: clerkId } = await getAuth();
         if (!clerkId) {
             return new NextResponse("Unauthorized", { status: 401 });
         }

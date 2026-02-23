@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { User } from "@/lib/model/user";
@@ -13,7 +13,7 @@ import { Workspace } from "@/lib/model/workspace";
  */
 export async function GET() {
     try {
-        const { userId } = await auth();
+        const { userId } = await getAuth();
 
         if (!userId) {
             return new NextResponse("Unauthorized", { status: 401 });

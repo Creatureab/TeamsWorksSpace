@@ -14,10 +14,9 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { title, description, privacy, automation, workspaceId } = body;
+        const { title, description, privacy, automation, workspaceId, parentId, spaceId, spaceType } = body;
 
-        // Relation Rules Check: Every project must store workspaceId and createdBy
-        if (!title || !workspaceId) {
+        if (!workspaceId) {
             return new NextResponse('Missing required fields', { status: 400 });
         }
 
@@ -27,7 +26,6 @@ export async function POST(req: Request) {
 
         await dbConnect();
 
-        // 1. Verify the workspaceId exists and the user belongs to that workspace
         const workspace = await Workspace.findOne({
             _id: new mongoose.Types.ObjectId(workspaceId),
             $or: [
@@ -36,33 +34,46 @@ export async function POST(req: Request) {
             ]
         });
 
-        // 3. Reject if validation fails with specific message
         if (!workspace) {
             return new NextResponse('Unauthorized or invalid workspace.', { status: 403 });
         }
 
-        // 4. Generate unique slug within the workspace
-        let slug = slugify(title);
-        const existingProject = await Project.findOne({ workspace: workspaceId, slug });
+        let order = 0;
+        let parentIdValid = null;
+        if (parentId && mongoose.Types.ObjectId.isValid(parentId)) {
+            const parent = await Project.findOne({ _id: parentId, workspace: workspaceId });
+            if (!parent) {
+                return new NextResponse('Invalid parent project.', { status: 400 });
+            }
+            parentIdValid = new mongoose.Types.ObjectId(parentId);
+            const siblingCount = await Project.countDocuments({ parentId: parentIdValid });
+            order = siblingCount;
+        }
 
+        const resolvedSpaceId = spaceId ?? `company-space-${workspaceId}`;
+        const resolvedSpaceType = (spaceType && ['my-space', 'team-space', 'company-space'].includes(spaceType))
+            ? spaceType
+            : 'company-space';
+
+        let slug = slugify(title || 'Untitled');
+        const existingProject = await Project.findOne({ workspace: workspaceId, slug });
         if (existingProject) {
-            // Append a small random string if slug exists
             slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
         }
 
-        // 5. Create the project with workspaceId, createdBy, and slug
         const project = await Project.create({
-            title,
+            title: title || 'Untitled',
             slug,
             description,
             privacy,
             automation,
             workspace: workspaceId,
+            parentId: parentIdValid,
+            order,
+            spaceId: resolvedSpaceId,
+            spaceType: resolvedSpaceType,
             createdBy: user._id,
-            sheets: [{
-                name: 'Tasks',
-                tasks: []
-            }]
+            sheets: [{ name: 'Tasks', tasks: [] }],
         });
 
         return NextResponse.json(project);
@@ -102,7 +113,9 @@ export async function GET(req: Request) {
                 return new NextResponse('Unauthorized or invalid workspace.', { status: 403 });
             }
 
-            const projects = await Project.find({ workspace: workspaceId }).sort({ createdAt: -1 });
+            const projects = await Project.find({ workspace: workspaceId })
+                .sort({ order: 1, createdAt: 1 })
+                .lean();
             return NextResponse.json(projects);
         }
 
@@ -118,7 +131,9 @@ export async function GET(req: Request) {
 
         const projects = await Project.find({
             workspace: { $in: workspaceIds }
-        }).sort({ createdAt: -1 });
+        })
+            .sort({ order: 1, createdAt: 1 })
+            .lean();
 
         return NextResponse.json(projects);
     } catch (error) {

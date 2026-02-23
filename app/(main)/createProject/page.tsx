@@ -16,10 +16,13 @@ const CreateProjectContent = () => {
     router.back();
   };
 
-  const handleCreate = (project: any) => {
+  const handleCreate = (project: { _id?: string } | null) => {
     setIsOpen(false);
-    // Redirect back to the workspace after creation
-    router.push(`/project/${workspaceId}`);
+    if (project?._id) {
+      router.push(`/project/${project._id}`);
+    } else {
+      router.back();
+    }
   };
 
   return (

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth, createClerkClient } from "@clerk/nextjs/server";
+import { getAuth, createClerkClient } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
 import { Workspace } from "@/lib/model/workspace";
 
@@ -10,7 +10,7 @@ export async function POST(
     { params }: { params: { workspaceId: string } }
 ) {
     try {
-        const { userId: clerkId } = await auth();
+        const { userId: clerkId } = await getAuth();
         if (!clerkId) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
@@ -35,7 +35,7 @@ export async function POST(
             try {
                 const invitation = await clerk.invitations.createInvitation({
                     emailAddress: email,
-                    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/sign-up`,
+                    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup`,
                     publicMetadata: {
                         workspaceId,
                         role: role || 'Member',
