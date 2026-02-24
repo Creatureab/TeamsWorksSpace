@@ -4,10 +4,12 @@
  * Defines the structure of metadata stored in Clerk user objects
  */
 export interface ClerkUserMetadata {
-    workspaceId?: string;
+    /** All workspace IDs this user owns (as Admin) */
+    workspaceIds?: string[];
+    /** The most recently created workspace — used as primary redirect target */
+    primaryWorkspaceId?: string;
     role?: 'Admin' | 'Member' | 'Viewer';
     invitationStatus?: 'pending' | 'accepted' | 'declined';
-    // Add other metadata fields as needed for your application
 }
 
 /**

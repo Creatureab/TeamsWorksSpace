@@ -14,6 +14,9 @@ export default function SignInPage() {
                 routing="path"
                 path="/sign-in"
                 signUpUrl="/sign-up"
+                // After sign-in, send back to "/" — middleware will read
+                // public_metadata.workspaceId and redirect to the right place
+                forceRedirectUrl="/"
             />
         </AuthShell>
     );

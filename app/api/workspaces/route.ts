@@ -19,52 +19,63 @@ export async function POST(req: Request) {
             return new NextResponse("User not found in database", { status: 404 });
         }
 
-        // Check if user already owns a workspace
-        const existingWorkspace = await Workspace.findOne({ owner: dbUser._id });
-        if (existingWorkspace) {
-            return NextResponse.json({
-                error: "You already have a workspace",
-                workspaceId: existingWorkspace._id,
-                workspaceName: existingWorkspace.name,
-                workspaceSlug: existingWorkspace.slug,
-                message: "You already have a workspace. Redirecting to your workspace..."
-            }, { status: 409 }); // 409 Conflict
-        }
-
         const { name, slug, size, type } = await req.json();
 
         if (!name || !slug || !size) {
             return new NextResponse("Missing required fields", { status: 400 });
         }
 
-        // Check if slug is unique
-        const existingSlug = await Workspace.findOne({ slug });
-        if (existingSlug) {
-            return new NextResponse("Slug already exists", { status: 400 });
+        // Slug uniqueness is enforced by the MongoDB unique index on the slug field.
+        // We catch error code 11000 (duplicate key) instead of doing a separate pre-check
+        // to avoid the race condition where two concurrent requests could both pass the check.
+        let workspace;
+        try {
+            workspace = await Workspace.create({
+                name,
+                slug,
+                size,
+                type: type || 'organization',
+                owner: dbUser._id,
+                members: [{ user: dbUser._id, role: 'Admin' }],
+                teamSpaces: [{ id: 'general', name: 'General', visibility: 'open', archived: false }],
+            });
+        } catch (createError: any) {
+            if (createError?.code === 11000) {
+                return NextResponse.json(
+                    { error: 'Slug already taken' },
+                    { status: 409 }
+                );
+            }
+            throw createError; // re-throw for the outer catch to handle
         }
 
-        const workspace = await Workspace.create({
-            name,
-            slug,
-            size,
-            type: type || 'organization',
-            owner: dbUser._id,
-            members: [{ user: dbUser._id, role: 'Admin' }],
-            teamSpaces: [{ id: 'general', name: 'General', visibility: 'open', archived: false }],
-        });
-
-        // Update Clerk user metadata with workspace ID
+        // Update Clerk user metadata — append new workspaceId to the existing array
         try {
             const client = await clerkClient();
+            const clerkUser = await client.users.getUser(clerkId);
+
+            // Read existing workspaceIds array (or fall back to legacy single workspaceId)
+            const existingMeta = (clerkUser.publicMetadata ?? {}) as {
+                workspaceIds?: string[];
+                workspaceId?: string;
+            };
+
+            const previousIds: string[] = existingMeta.workspaceIds
+                ?? (existingMeta.workspaceId ? [existingMeta.workspaceId] : []);
+
+            const newWorkspaceId = workspace._id.toString();
+            const updatedIds = [...previousIds, newWorkspaceId];
+
             await client.users.updateUserMetadata(clerkId, {
                 publicMetadata: {
-                    workspaceId: workspace._id.toString(),
-                    role: 'Admin'
-                }
+                    workspaceIds: updatedIds,
+                    primaryWorkspaceId: newWorkspaceId, // most recent = primary
+                    role: 'Admin',
+                },
             });
         } catch (clerkError) {
             console.error("[CLERK_UPDATE_ERROR]", clerkError);
-            // Don't fail the request if Clerk update fails
+            // Don't fail the whole request if Clerk update fails
         }
 
         return NextResponse.json(workspace);
@@ -73,4 +84,3 @@ export async function POST(req: Request) {
         return new NextResponse("Internal Error", { status: 500 });
     }
 }
-

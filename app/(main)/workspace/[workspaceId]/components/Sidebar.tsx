@@ -36,6 +36,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClerk } from "@clerk/nextjs";
+import { toast } from "sonner";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Sidebar as ShadcnSidebar,
@@ -98,8 +100,14 @@ interface TeamSpace {
   id: string;
   name: string;
   visibility: TeamSpaceVisibility;
+  accessType: "open" | "closed" | "private";
   archived?: boolean;
+  isMember: boolean;
+  canAccess: boolean;
+  canEdit: boolean;
+  description?: string;
 }
+
 
 const getInitial = (value?: string | null, fallback = "W") =>
   value?.trim().charAt(0).toUpperCase() || fallback;
@@ -217,11 +225,11 @@ export default function Sidebar({
     ? `team-${activeTeamSpaceId}`
     : isMySpaceRoute
       ? "my-space"
-    : activeProjectSlug
-      ? "favorites"
-      : isHomeActive
-        ? "home"
-        : activeItem;
+      : activeProjectSlug
+        ? "favorites"
+        : isHomeActive
+          ? "home"
+          : activeItem;
   const isTeamSectionActive =
     Boolean(activeTeamSpaceId) ||
     resolvedActiveItem === "team-spaces" ||
@@ -384,8 +392,47 @@ export default function Sidebar({
 
   const handleLeaveTeamSpace = (spaceId: string) => {
     if (!window.confirm("Leave this team space?")) return;
-    handleArchiveTeamSpace(spaceId);
+
+    (async () => {
+      try {
+        const response = await fetch(`/api/workspaces/${workspaceId}/team-spaces/${encodeURIComponent(spaceId)}/members/${user?._id || 'me'}`, {
+          method: "DELETE",
+        });
+        if (!response.ok) throw new Error("Failed to leave");
+
+        // Refresh
+        router.refresh();
+        const res = await fetch(`/api/workspaces/${workspaceId}/team-spaces`);
+        const data = await res.json();
+        setTeamSpaces(data.teamSpaces);
+      } catch (error) {
+        console.error("Failed to leave:", error);
+      }
+    })();
   };
+
+  const handleJoinTeamSpace = (spaceId: string) => {
+    (async () => {
+      try {
+        const response = await fetch(`/api/workspaces/${workspaceId}/team-spaces/${encodeURIComponent(spaceId)}/join`, {
+          method: "POST"
+        });
+        if (!response.ok) throw new Error("Failed to join");
+
+        const data = await response.json();
+        toast.success(`Joined ${data.teamSpace.name}`);
+
+        // Refresh
+        router.refresh();
+        const res = await fetch(`/api/workspaces/${workspaceId}/team-spaces`);
+        const resData = await res.json();
+        setTeamSpaces(resData.teamSpaces);
+      } catch (error) {
+        console.error("Failed to join:", error);
+      }
+    })();
+  };
+
 
   const handleTeamSpaceVisibilityChange = (
     spaceId: string,
@@ -618,45 +665,75 @@ export default function Sidebar({
                           <SidebarMenuSubButton
                             isActive={resolvedActiveItem === `team-${space.id}`}
                             onClick={() => {
+                              if (!space.canAccess) {
+                                toast.error("This team space is invite-only");
+                                return;
+                              }
                               setActiveItem(`team-${space.id}`);
                               router.push(getTeamSpacePath(space.id));
                             }}
-                            className="h-8 rounded-lg pr-9 text-[12px] text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-blue-50 data-[active=true]:text-blue-700"
+
+                            className={cn(
+                              "h-8 rounded-lg pr-9 text-[12px] text-slate-600 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
+                              resolvedActiveItem === `team-${space.id}` ? "bg-blue-50 text-blue-700" : "",
+                              !space.isMember && space.accessType === 'closed' ? "opacity-60 grayscale-[0.5]" : ""
+                            )}
                           >
-                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                            <span className="truncate">{space.name}</span>
+                            <span className={cn(
+                              "h-1.5 w-1.5 rounded-full transition-colors",
+                              space.isMember ? "bg-blue-500" : "bg-slate-400"
+                            )} />
+                            <span className="truncate flex items-center gap-1.5">
+                              {space.name}
+                              {!space.isMember && space.accessType === 'closed' && (
+                                <Lock className="h-2.5 w-2.5 text-slate-400" />
+                              )}
+                            </span>
                           </SidebarMenuSubButton>
 
-                          <div className="ml-4 mt-1 space-y-0.5 pr-8">
-                            <p className="px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                              Projects
-                            </p>
-                            {projectsForTeamSpace(space.id).length > 0 ? (
-                              projectsForTeamSpace(space.id).map((project) => (
-                                <button
-                                  key={project._id}
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveItem(`team-${space.id}`);
-                                    router.push(
-                                      `${getTeamSpacePath(space.id)}?project=${encodeURIComponent(project.slug)}`
-                                    );
-                                  }}
-                                  className={cn(
-                                    "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[12px] text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
-                                    activeTeamSpaceId === space.id && activeProjectSlug === project.slug
-                                      ? "bg-blue-50 text-blue-700"
-                                      : ""
-                                  )}
-                                >
-                                  <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                                  <span className="truncate">{project.title}</span>
-                                </button>
-                              ))
-                            ) : (
-                              <p className="px-2 py-1 text-[11px] text-slate-400">No projects assigned</p>
-                            )}
-                          </div>
+                          {!space.isMember && space.accessType === 'open' && (
+                            <button
+                              onClick={() => handleJoinTeamSpace(space.id)}
+                              className="absolute right-9 top-1.5 hidden group-hover/team:flex h-5 items-center rounded bg-blue-600 px-1.5 text-[10px] font-bold text-white hover:bg-blue-700"
+                            >
+                              Join
+                            </button>
+                          )}
+
+
+                          {space.canAccess && (
+                            <div className="ml-4 mt-1 space-y-0.5 pr-8">
+                              <p className="px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                Projects
+                              </p>
+                              {projectsForTeamSpace(space.id).length > 0 ? (
+                                projectsForTeamSpace(space.id).map((project) => (
+                                  <button
+                                    key={project._id}
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveItem(`team-${space.id}`);
+                                      router.push(
+                                        `${getTeamSpacePath(space.id)}?project=${encodeURIComponent(project.slug)}`
+                                      );
+                                    }}
+                                    className={cn(
+                                      "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[12px] text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
+                                      activeTeamSpaceId === space.id && activeProjectSlug === project.slug
+                                        ? "bg-blue-50 text-blue-700"
+                                        : ""
+                                    )}
+                                  >
+                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                    <span className="truncate">{project.title}</span>
+                                  </button>
+                                ))
+                              ) : (
+                                <p className="px-2 py-1 text-[11px] text-slate-400">No projects assigned</p>
+                              )}
+                            </div>
+                          )}
+
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -681,15 +758,18 @@ export default function Sidebar({
                                 {space.name} - {formatVisibility(space.visibility)}
                               </DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setActiveItem(`team-${space.id}`);
-                                  router.push(getTeamSpacePath(space.id, "settings"));
-                                }}
-                              >
-                                <Settings className="h-4 w-4" />
-                                Teamspace settings
-                              </DropdownMenuItem>
+                              {space.canEdit && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setActiveItem(`team-${space.id}`);
+                                    router.push(getTeamSpacePath(space.id, "settings"));
+                                  }}
+                                >
+                                  <Settings className="h-4 w-4" />
+                                  Teamspace settings
+                                </DropdownMenuItem>
+                              )}
+
                               <DropdownMenuItem
                                 onClick={() => {
                                   setActiveItem(`team-${space.id}`);

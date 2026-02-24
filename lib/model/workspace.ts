@@ -1,32 +1,41 @@
 import mongoose from 'mongoose';
 
+const teamSpaceMemberSchema = new mongoose.Schema({
+    clerkId: { type: String, required: true },
+    role: {
+        type: String,
+        enum: ['owner', 'member', 'guest'],
+        default: 'member',
+    },
+    joinedAt: { type: Date, default: Date.now },
+}, { _id: false });
+
 const teamSpaceSchema = new mongoose.Schema({
-    id: {
-        type: String,
-        required: true,
-    },
-    name: {
-        type: String,
-        required: true,
-    },
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    // LEGACY — kept for backwards compat; new code uses accessType
     visibility: {
         type: String,
         enum: ['open', 'closed', 'private'],
         default: 'open',
     },
-    archived: {
-        type: Boolean,
-        default: false,
+    // NEW access type (mirrors visibility; update both together)
+    accessType: {
+        type: String,
+        enum: ['open', 'closed', 'private'],
+        default: 'open',
     },
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now,
-    },
+    description: { type: String, default: '' },
+    icon: { type: String, default: '' },
+    // clerkId of the creator (not required on existing docs)
+    createdBy: { type: String, default: null },
+    archived: { type: Boolean, default: false },
+    archivedAt: { type: Date, default: null },
+    members: { type: [teamSpaceMemberSchema], default: [] },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
 }, { _id: false });
+
 
 const workspaceSchema = new mongoose.Schema({
     name: {

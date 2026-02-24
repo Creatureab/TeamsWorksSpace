@@ -7,10 +7,24 @@ import type { ClerkUser, ClerkUserMetadata } from '@/lib/types/clerk';
  */
 
 /**
- * Extracts workspace ID from Clerk user metadata
+ * Returns all workspace IDs the user owns.
+ * Handles both the new array shape and the legacy single-id shape.
+ */
+export function getWorkspaceIds(user: ClerkUser | null | undefined): string[] {
+    const meta = user?.publicMetadata;
+    if (!meta) return [];
+    if (meta.workspaceIds?.length) return meta.workspaceIds;
+    if (meta.primaryWorkspaceId) return [meta.primaryWorkspaceId];
+    return [];
+}
+
+/**
+ * Returns the primary (most recently created) workspace ID.
+ * Backwards-compatible: reads primaryWorkspaceId, falls back to first in array.
  */
 export function getWorkspaceId(user: ClerkUser | null | undefined): string | undefined {
-    return user?.publicMetadata?.workspaceId;
+    const meta = user?.publicMetadata;
+    return meta?.primaryWorkspaceId ?? meta?.workspaceIds?.[0];
 }
 
 /**
@@ -21,10 +35,10 @@ export function getUserRole(user: ClerkUser | null | undefined): string | undefi
 }
 
 /**
- * Checks if user has a workspace invitation
+ * Checks if user has at least one workspace
  */
 export function hasWorkspaceInvitation(user: ClerkUser | null | undefined): boolean {
-    return !!getWorkspaceId(user);
+    return getWorkspaceIds(user).length > 0;
 }
 
 /**
@@ -35,7 +49,8 @@ export function createWorkspaceInvitationMetadata(
     role: 'Admin' | 'Member' | 'Viewer' = 'Member'
 ): ClerkUserMetadata {
     return {
-        workspaceId,
+        workspaceIds: [workspaceId],
+        primaryWorkspaceId: workspaceId,
         role,
         invitationStatus: 'pending'
     };
