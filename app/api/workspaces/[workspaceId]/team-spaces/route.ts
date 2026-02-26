@@ -121,10 +121,16 @@ export async function GET(
     );
 
     // Attach computed permission flags per space
-    const teamSpaces = visible.map((ts) => ({
-      ...(ts as unknown as Record<string, unknown>),
-      ...computePermissions(clerkId, ts, isWorkspaceMember),
-    }));
+    const teamSpaces = visible.map((ts) => {
+      const base =
+        typeof (ts as any)?.toObject === "function"
+          ? (ts as any).toObject()
+          : (ts as unknown as Record<string, unknown>);
+      return {
+        ...base,
+        ...computePermissions(clerkId, ts, isWorkspaceMember),
+      };
+    });
 
     return NextResponse.json({ teamSpaces });
   } catch (error) {
@@ -194,10 +200,16 @@ export async function POST(
     const visible = (workspace.teamSpaces as TeamSpacePermission[]).filter((ts) =>
       canSeeTeamSpace(clerkId, ts, isWorkspaceMember)
     );
-    const teamSpaces = visible.map((ts) => ({
-      ...(ts as unknown as Record<string, unknown>),
-      ...computePermissions(clerkId, ts, isWorkspaceMember),
-    }));
+    const teamSpaces = visible.map((ts) => {
+      const base =
+        typeof (ts as any)?.toObject === "function"
+          ? (ts as any).toObject()
+          : (ts as unknown as Record<string, unknown>);
+      return {
+        ...base,
+        ...computePermissions(clerkId, ts, isWorkspaceMember),
+      };
+    });
 
     return NextResponse.json({ teamSpace, teamSpaces });
   } catch (error) {

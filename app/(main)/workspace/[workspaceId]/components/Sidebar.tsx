@@ -140,6 +140,8 @@ export default function Sidebar({
   const isMySpaceRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "my-space";
   const isInboxRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "inbox";
   const isCompanySpaceRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "company-space";
+  const isTemplatesRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "templates";
+  const isTrashRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "trash";
   const activeTeamSpaceId =
     pathnameParts[0] === "workspace" && pathnameParts[2] === "team-space" && pathnameParts[3]
       ? decodeURIComponent(pathnameParts[3])
@@ -157,6 +159,8 @@ export default function Sidebar({
   const [workspaceSize, setWorkspaceSize] = useState<"1-5" | "6-20" | "21-50" | "50+">(workspaceSizeFromProps);
   const [isCompanySpaceEnabled, setIsCompanySpaceEnabled] = useState(true);
   const [inboxCount, setInboxCount] = useState<number | null>(null);
+  const [quickFindValue, setQuickFindValue] = useState("");
+  const [favoriteSlugs, setFavoriteSlugs] = useState<string[]>([]);
 
   useEffect(() => {
     setWorkspaceDisplayName(workspaceNameFromProps);
@@ -262,7 +266,7 @@ export default function Sidebar({
   const mySpacePath = `${workspaceHomePath}/my-space`;
   const companySpacePath = `${workspaceHomePath}/company-space`;
   const visibleTeamSpaces = teamSpaces.filter((space) => !space.archived);
-  const favoriteProjects = projects.slice(0, 4);
+  const favoriteProjects = projects.filter((project) => favoriteSlugs.includes(project.slug));
   const projectsForTeamSpace = (spaceId: string) => {
     if (spaceId === "general") {
       return projects.filter((project) => !project.teamSpaceId || project.teamSpaceId === "general");
@@ -283,6 +287,10 @@ export default function Sidebar({
         ? "company-space"
         : isInboxRoute
           ? "inbox"
+          : isTemplatesRoute
+            ? "templates"
+            : isTrashRoute
+              ? "trash"
           : activeProjectSlug
             ? "favorites"
             : isHomeActive
@@ -576,9 +584,59 @@ export default function Sidebar({
     }
   };
 
+  useEffect(() => {
+    if (!workspaceId) {
+      setFavoriteSlugs([]);
+      return;
+    }
+    const key = `favorite-projects:${workspaceId}`;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setFavoriteSlugs(parsed.filter((item) => typeof item === "string"));
+          return;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to read favorites", error);
+    }
+    setFavoriteSlugs([]);
+  }, [workspaceId]);
+
+  const persistFavorites = (next: string[]) => {
+    setFavoriteSlugs(next);
+    if (!workspaceId) return;
+    const key = `favorite-projects:${workspaceId}`;
+    try {
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch (error) {
+      console.error("Failed to store favorites", error);
+    }
+  };
+
+  const toggleFavorite = (slug: string) => {
+    setFavoriteSlugs((previous) => {
+      const exists = previous.includes(slug);
+      const next = exists ? previous.filter((item) => item !== slug) : [...previous, slug];
+      persistFavorites(next);
+      return next;
+    });
+  };
+
+  const isFavorite = (slug: string) => favoriteSlugs.includes(slug);
+
+  const handleQuickFindSubmit = () => {
+    const query = quickFindValue.trim();
+    if (!query) return;
+    setActiveItem("search");
+    router.push(`${workspaceHomePath}?search=${encodeURIComponent(query)}`);
+  };
+
   const navItemClassName =
-    "h-9 rounded-lg px-2.5 text-[13px] font-medium text-slate-600 transition-colors duration-200 hover:bg-slate-200/75 hover:text-slate-900 data-[active=true]:bg-blue-50 data-[active=true]:text-blue-700 data-[active=true]:shadow-[inset_0_0_0_1px_rgba(37,99,235,0.2)]";
-  const iconClassName = "h-4 w-4 text-slate-500";
+    "h-9 rounded-lg px-2.5 text-[13px] font-medium text-slate-700 transition-colors duration-150 hover:bg-slate-200/60 data-[active=true]:bg-slate-300 data-[active=true]:text-slate-900";
+  const iconClassName = "h-3.5 w-3.5 text-slate-500";
 
   return (
     <ShadcnSidebar
@@ -616,7 +674,7 @@ export default function Sidebar({
                       {ws._id === currentWorkspace?._id ? workspaceDisplayName : ws.name}
                     </span>
                     {ws._id === currentWorkspace?._id ? (
-                      <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                      <div className="h-1.5 w-1.5 rounded-full bg-slate-500" />
                     ) : null}
                   </div>
                 </DropdownMenuItem>
@@ -643,9 +701,105 @@ export default function Sidebar({
       </SidebarHeader>
 
       <SidebarContent className="gap-0 px-3 py-3">
+        <div className="mb-3 flex h-11 items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-3 shadow-sm">
+          <Search className="h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={quickFindValue}
+            onChange={(event) => setQuickFindValue(event.target.value)}
+            onFocus={() => setActiveItem("search")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                handleQuickFindSubmit();
+              }
+            }}
+            placeholder="Quick Find"
+            className="flex-1 border-none bg-transparent text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+          />
+          <span className="text-[11px] font-medium text-slate-400 group-data-[collapsible=icon]:hidden">Ctrl/Cmd+P</span>
+        </div>
+
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Updates"
+                  isActive={resolvedActiveItem === "inbox"}
+                  className={navItemClassName}
+                  onClick={() => {
+                    setActiveItem("inbox");
+                    router.push(`${workspaceHomePath}/inbox`);
+                  }}
+                >
+                  <Inbox className={iconClassName} />
+                  <span>Updates</span>
+                </SidebarMenuButton>
+                {typeof inboxCount === "number" && inboxCount > 0 ? (
+                  <SidebarMenuBadge className="right-2 rounded-full bg-slate-200 px-1.5 text-[10px] font-semibold text-slate-800">
+                    {inboxCount}
+                  </SidebarMenuBadge>
+                ) : null}
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Favorites"
+                  isActive={resolvedActiveItem === "favorites"}
+                  className={navItemClassName}
+                  onClick={() => {
+                    setActiveItem("favorites");
+                    setIsFavoritesExpanded((open) => !open);
+                  }}
+                >
+                  <Star className={iconClassName} />
+                  <span>Favorites</span>
+                  {isFavoritesExpanded ? (
+                    <ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
+                  )}
+                </SidebarMenuButton>
+                {showFavoritesSection && (
+                  <SidebarMenuSub className="mt-1 border-slate-200">
+                    {favoriteProjects.length > 0 ? (
+                      favoriteProjects.map((project) => (
+                        <SidebarMenuSubItem key={project._id}>
+                          <SidebarMenuSubButton
+                            isActive={activeProjectSlug === project.slug}
+                            onClick={() =>
+                              router.push(
+                                `${getProjectContextPath()}?project=${encodeURIComponent(project.slug)}`
+                              )
+                            }
+                            className="relative h-8 rounded-lg pr-10 text-[12px] text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-slate-300 data-[active=true]:text-slate-900"
+                          >
+                            <Star
+                              className="h-3.5 w-3.5 text-amber-500"
+                              fill="currentColor"
+                            />
+                            <span className="truncate">{project.title}</span>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleFavorite(project.slug);
+                              }}
+                              className="absolute right-2 inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                              aria-label="Remove from favorites"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1.5 text-xs text-slate-400">No favorites yet</div>
+                    )}
+                  </SidebarMenuSub>
+                )}
+              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Home"
@@ -733,13 +887,13 @@ export default function Sidebar({
 
                             className={cn(
                               "h-8 rounded-lg pr-9 text-[12px] text-slate-600 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
-                              resolvedActiveItem === `team-${space.id}` ? "bg-blue-50 text-blue-700" : "",
+                              resolvedActiveItem === `team-${space.id}` ? "bg-slate-300 text-slate-900" : "",
                               !space.isMember && space.accessType === 'closed' ? "opacity-60 grayscale-[0.5]" : ""
                             )}
                           >
                             <span className={cn(
                               "h-1.5 w-1.5 rounded-full transition-colors",
-                              space.isMember ? "bg-blue-500" : "bg-slate-400"
+                              space.isMember ? "bg-slate-600" : "bg-slate-400"
                             )} />
                             <span className="truncate flex items-center gap-1.5">
                               {space.name}
@@ -752,7 +906,7 @@ export default function Sidebar({
                           {!space.isMember && space.accessType === 'open' && (
                             <button
                               onClick={() => handleJoinTeamSpace(space.id)}
-                              className="absolute right-9 top-1.5 hidden group-hover/team:flex h-5 items-center rounded bg-blue-600 px-1.5 text-[10px] font-bold text-white hover:bg-blue-700"
+                              className="absolute right-9 top-1.5 hidden group-hover/team:flex h-5 items-center rounded bg-slate-800 px-1.5 text-[10px] font-bold text-white hover:bg-slate-700"
                             >
                               Join
                             </button>
@@ -761,9 +915,7 @@ export default function Sidebar({
 
                           {space.canAccess && (
                             <div className="ml-4 mt-1 space-y-0.5 pr-8">
-                              <p className="px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                                Projects
-                              </p>
+                              <p className="px-2 text-[10px] font-semibold text-slate-500">Projects</p>
                               {projectsForTeamSpace(space.id).length > 0 ? (
                                 projectsForTeamSpace(space.id).map((project) => (
                                   <button
@@ -776,14 +928,39 @@ export default function Sidebar({
                                       );
                                     }}
                                     className={cn(
-                                      "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[12px] text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
+                                      "relative flex h-7 w-full items-center gap-2 rounded-md px-2 pr-8 text-left text-[12px] text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
                                       activeTeamSpaceId === space.id && activeProjectSlug === project.slug
-                                        ? "bg-blue-50 text-blue-700"
+                                        ? "bg-slate-300 text-slate-900"
                                         : ""
                                     )}
                                   >
                                     <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
                                     <span className="truncate">{project.title}</span>
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      aria-label={isFavorite(project.slug) ? "Remove favorite" : "Add favorite"}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        toggleFavorite(project.slug);
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.preventDefault();
+                                          event.stopPropagation();
+                                          toggleFavorite(project.slug);
+                                        }
+                                      }}
+                                      className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                                    >
+                                      <Star
+                                        className={cn(
+                                          "h-3.5 w-3.5",
+                                          isFavorite(project.slug) ? "text-amber-500" : "text-slate-400"
+                                        )}
+                                        fill={isFavorite(project.slug) ? "currentColor" : "none"}
+                                      />
+                                    </span>
                                   </button>
                                 ))
                               ) : (
@@ -925,55 +1102,11 @@ export default function Sidebar({
         <SidebarSeparator className="my-3 bg-slate-200/80" />
 
         <SidebarGroup className="p-0">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-slate-500">
             Workspace
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Favorites"
-                  isActive={resolvedActiveItem === "favorites"}
-                  className={navItemClassName}
-                  onClick={() => {
-                    setActiveItem("favorites");
-                    setIsFavoritesExpanded((open) => !open);
-                  }}
-                >
-                  <Star className={iconClassName} />
-                  <span>Favorites</span>
-                  {isFavoritesExpanded ? (
-                    <ChevronDown className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
-                  ) : (
-                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-400 group-data-[collapsible=icon]:hidden" />
-                  )}
-                </SidebarMenuButton>
-                {showFavoritesSection && (
-                  <SidebarMenuSub className="mt-1 border-slate-200">
-                    {favoriteProjects.length > 0 ? (
-                      favoriteProjects.map((project) => (
-                        <SidebarMenuSubItem key={project._id}>
-                          <SidebarMenuSubButton
-                            isActive={activeProjectSlug === project.slug}
-                            onClick={() =>
-                              router.push(
-                                `${getProjectContextPath()}?project=${encodeURIComponent(project.slug)}`
-                              )
-                            }
-                            className="h-8 rounded-lg text-[12px] text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-blue-50 data-[active=true]:text-blue-700"
-                          >
-                            <Star className="h-3.5 w-3.5 text-slate-400" />
-                            <span className="truncate">{project.title}</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-xs text-slate-400">No favorites yet</div>
-                    )}
-                  </SidebarMenuSub>
-                )}
-              </SidebarMenuItem>
-
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Search"
@@ -988,22 +1121,55 @@ export default function Sidebar({
 
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Inbox"
-                  isActive={resolvedActiveItem === "inbox"}
+                  tooltip="Templates"
+                  isActive={resolvedActiveItem === "templates"}
                   className={navItemClassName}
                   onClick={() => {
-                    setActiveItem("inbox");
-                    router.push(`${workspaceHomePath}/inbox`);
+                    setActiveItem("templates");
+                    router.push(`${workspaceHomePath}/templates`);
                   }}
                 >
-                  <Inbox className={iconClassName} />
-                  <span>Inbox</span>
+                  <Copy className={iconClassName} />
+                  <span>Templates</span>
                 </SidebarMenuButton>
-                {typeof inboxCount === "number" && inboxCount > 0 ? (
-                  <SidebarMenuBadge className="right-2 rounded-full bg-blue-100 px-1.5 text-[10px] font-semibold text-blue-700">
-                    {inboxCount}
-                  </SidebarMenuBadge>
-                ) : null}
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Trash"
+                  isActive={resolvedActiveItem === "trash"}
+                  className={navItemClassName}
+                  onClick={() => {
+                    setActiveItem("trash");
+                    router.push(`${workspaceHomePath}/trash`);
+                  }}
+                >
+                  <Trash2 className={iconClassName} />
+                  <span>Trash</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Settings & members"
+                  isActive={false}
+                  className={navItemClassName}
+                  onClick={() => setIsCustomizeWorkspaceOpen(true)}
+                >
+                  <Settings className={iconClassName} />
+                  <span>Settings & members</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <Button
+                  type="button"
+                  className="h-9 w-full justify-start rounded-lg bg-slate-800 px-3 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-700"
+                  onClick={() => router.push(`${workspaceHomePath}?newPage=true`)}
+                >
+                  <Plus className="mr-2 h-3.5 w-3.5" />
+                  New page
+                </Button>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
@@ -1011,44 +1177,42 @@ export default function Sidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t border-slate-200/80 bg-[#F7F7F8] px-3 py-3">
-        <div className="rounded-lg border border-slate-200/90 bg-white p-2">
-          <div className="flex items-center gap-2 rounded-md p-1">
-            <Avatar className="h-8 w-8 border border-slate-200">
-              <AvatarImage src={user?.imageUrl ?? undefined} />
-              <AvatarFallback className="bg-slate-800 text-[10px] font-semibold text-white">
-                {getInitial(user?.firstName, "U")}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-xs font-semibold text-slate-800">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="truncate text-[11px] text-slate-500">{user?.email}</p>
-            </div>
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8 border border-slate-200 bg-white">
+            <AvatarImage src={user?.imageUrl ?? undefined} />
+            <AvatarFallback className="bg-slate-700 text-[10px] font-semibold text-white">
+              {getInitial(user?.firstName, "U")}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <p className="truncate text-xs font-semibold text-slate-800">
+              {user?.firstName} {user?.lastName}
+            </p>
+            <p className="truncate text-[11px] text-slate-500">{user?.email}</p>
           </div>
+        </div>
 
-          <div className="mt-2 flex gap-1 group-data-[collapsible=icon]:mt-1 group-data-[collapsible=icon]:justify-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 flex-1 justify-start rounded-lg text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center"
-              onClick={() => setIsCustomizeWorkspaceOpen(true)}
-            >
-              <Settings className="h-3.5 w-3.5" />
-              <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 flex-1 justify-start rounded-lg text-xs text-slate-600 hover:bg-red-50 hover:text-red-600 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-            </Button>
-          </div>
+        <div className="mt-2 flex gap-1 group-data-[collapsible=icon]:mt-1 group-data-[collapsible=icon]:justify-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 flex-1 justify-start rounded-lg text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center"
+            onClick={() => setIsCustomizeWorkspaceOpen(true)}
+          >
+            <Settings className="h-3.5 w-3.5" />
+            <span className="group-data-[collapsible=icon]:hidden">Settings</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 flex-1 justify-start rounded-lg text-xs text-slate-600 hover:bg-red-50 hover:text-red-600 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+          </Button>
         </div>
       </SidebarFooter>
 
