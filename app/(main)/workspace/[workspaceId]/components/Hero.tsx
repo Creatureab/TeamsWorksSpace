@@ -37,6 +37,8 @@ interface HeroProps {
     name?: string;
   } | null;
   projects?: HeroProject[];
+  projectBasePath?: string;
+  teamSpaceId?: string;
 }
 
 const formatActivityTime = (updatedAt?: string) => {

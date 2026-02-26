@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth, createClerkClient } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
 import { Workspace } from "@/lib/model/workspace";
@@ -6,8 +6,8 @@ import { Workspace } from "@/lib/model/workspace";
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export async function POST(
-    req: Request,
-    { params }: { params: { workspaceId: string } }
+    req: NextRequest,
+    context: { params: Promise<{ workspaceId: string }> }
 ) {
     try {
         const { userId: clerkId } = await auth();
@@ -15,7 +15,7 @@ export async function POST(
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        const { workspaceId } = await params;
+        const { workspaceId } = await context.params;
 
         await dbConnect();
 

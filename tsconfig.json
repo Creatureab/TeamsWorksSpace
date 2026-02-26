@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -17,11 +13,17 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "baseUrl": ".", // ✅ ADD THIS
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "@editor": ["./packages/editor/src/index.ts"],
+      "@editor/*": ["./packages/editor/src/*"],
+      "@models": ["./packages/models/src/index.ts"],
+      "@models/*": ["./packages/models/src/*"],
+      "@utils": ["./packages/utils/src/index.ts"],
+      "@utils/*": ["./packages/utils/src/*"],
+      "@config": ["./packages/config"],
+      "@config/*": ["./packages/config/*"]
     },
     "plugins": [
       {
@@ -37,7 +39,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

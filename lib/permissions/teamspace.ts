@@ -146,3 +146,31 @@ export function computePermissions(
         role: getMemberRole(clerkId, teamSpace),
     };
 }
+
+// â”€â”€ Security settings helpers (used by API routes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+/** Owner gate for security settings (aliases existing edit gate). */
+export function canManageSecurity(
+    clerkId: string,
+    teamSpace: TeamSpacePermission
+): boolean {
+    return canEditTeamSpace(clerkId, teamSpace);
+}
+
+/** Basic shape validation for security settings payloads. */
+export function validateSecuritySettings(payload: Record<string, unknown>) {
+    const allowedKeys = new Set([
+        'allowMemberInvites',
+        'requireApprovalForJoin',
+        'restrictContentAccess',
+        'enableAuditLog',
+    ]);
+
+    const sanitized: Record<string, boolean> = {};
+    for (const [key, value] of Object.entries(payload ?? {})) {
+        if (!allowedKeys.has(key)) continue;
+        if (typeof value !== 'boolean') continue;
+        sanitized[key] = value;
+    }
+    return sanitized;
+}

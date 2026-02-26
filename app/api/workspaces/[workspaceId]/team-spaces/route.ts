@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import { Workspace } from "@/lib/model/workspace";
 import { User } from "@/lib/model/user";
@@ -44,6 +45,10 @@ async function resolveWorkspaceAccess(
     return { error: new NextResponse("User not found", { status: 404 }) };
   }
 
+  if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
+    return { error: new NextResponse("Invalid workspace id", { status: 400 }) };
+  }
+
   const workspace = await Workspace.findById(workspaceId);
   if (!workspace) {
     return { error: new NextResponse("Workspace not found", { status: 404 }) };
@@ -78,6 +83,16 @@ function ensureTeamSpaces(
 ) {
   if (!Array.isArray(workspace.teamSpaces) || workspace.teamSpaces.length === 0) {
     workspace.teamSpaces = [defaultTeamSpace(clerkId)];
+    workspace.updatedAt = new Date();
+    return workspace.save();
+  }
+
+  // Backfill missing owners on legacy General spaces
+  const general = (workspace.teamSpaces as unknown[]).find(
+    (ts) => (ts as { id?: string }).id === "general"
+  ) as { members?: { clerkId: string; role: string; joinedAt?: Date }[] } | undefined;
+  if (general && Array.isArray(general.members) && general.members.length === 0) {
+    general.members.push({ clerkId, role: "owner", joinedAt: new Date() });
     workspace.updatedAt = new Date();
     return workspace.save();
   }
@@ -124,7 +139,7 @@ export async function POST(
 ) {
   try {
     const { workspaceId } = await params;
-    const access = await resolveWorkspaceAccess(workspaceId, false);
+    const access = await resolveWorkspaceAccess(workspaceId, true);
     if (access.error) return access.error;
 
     const { workspace, clerkId, isWorkspaceMember } = access as {
@@ -176,12 +191,13 @@ export async function POST(
     workspace.updatedAt = new Date();
     await workspace.save();
 
-    const teamSpaces = (workspace.teamSpaces as TeamSpacePermission[]).map(
-      (ts) => ({
-        ...(ts as unknown as Record<string, unknown>),
-        ...computePermissions(clerkId, ts, isWorkspaceMember),
-      })
+    const visible = (workspace.teamSpaces as TeamSpacePermission[]).filter((ts) =>
+      canSeeTeamSpace(clerkId, ts, isWorkspaceMember)
     );
+    const teamSpaces = visible.map((ts) => ({
+      ...(ts as unknown as Record<string, unknown>),
+      ...computePermissions(clerkId, ts, isWorkspaceMember),
+    }));
 
     return NextResponse.json({ teamSpace, teamSpaces });
   } catch (error) {

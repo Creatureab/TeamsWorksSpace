@@ -14,7 +14,9 @@ export default async function TeamSpaceSettingsPage({
 }) {
   const { workspaceId, teamSpaceId } = await params;
   const { userId: clerkId } = await auth();
-  if (!clerkId) redirect("/sign-in");
+  if (!clerkId) {
+    redirect("/sign-in");
+  }
 
   const data = await getWorkspaceViewData({
     workspaceId,
@@ -30,7 +32,8 @@ export default async function TeamSpaceSettingsPage({
   }
 
   // Permission Check: Must be owner to edit settings
-  if (!canEditTeamSpace(clerkId, teamSpace)) {
+  const currentUserClerkId = clerkId;
+  if (!canEditTeamSpace(currentUserClerkId, teamSpace)) {
     redirect(`/workspace/${workspaceId}/team-space/${teamSpaceId}`);
   }
 
@@ -70,7 +73,7 @@ export default async function TeamSpaceSettingsPage({
             archived: teamSpace.archived,
           }}
           initialMembers={enrichedMembers as any}
-          currentUserClerkId={clerkId}
+          currentUserClerkId={currentUserClerkId}
         />
       </div>
     </SidebarProvider>

@@ -2,4 +2,5 @@
 // Re-export all utility functions for easy imports
 
 export * from './clerk';
-export { cn } from './utils';
+// Pull cn from shared util definition at lib/utils.ts
+export { cn } from '../utils';

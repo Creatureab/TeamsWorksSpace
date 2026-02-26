@@ -30,6 +30,7 @@ export async function POST(req: Request) {
         // to avoid the race condition where two concurrent requests could both pass the check.
         let workspace;
         try {
+            const now = new Date();
             workspace = await Workspace.create({
                 name,
                 slug,
@@ -37,7 +38,20 @@ export async function POST(req: Request) {
                 type: type || 'organization',
                 owner: dbUser._id,
                 members: [{ user: dbUser._id, role: 'Admin' }],
-                teamSpaces: [{ id: 'general', name: 'General', visibility: 'open', archived: false }],
+                teamSpaces: [{
+                    id: 'general',
+                    name: 'General',
+                    visibility: 'open',
+                    accessType: 'open',
+                    description: '',
+                    icon: '',
+                    createdBy: clerkId,
+                    archived: false,
+                    archivedAt: null,
+                    members: [{ clerkId, role: 'owner', joinedAt: now }],
+                    createdAt: now,
+                    updatedAt: now,
+                }],
             });
         } catch (createError: any) {
             if (createError?.code === 11000) {

@@ -92,7 +92,20 @@ const workspaceSchema = new mongoose.Schema({
     }],
     teamSpaces: {
         type: [teamSpaceSchema],
-        default: [{ id: 'general', name: 'General', visibility: 'open', archived: false }],
+        default: [{
+            id: 'general',
+            name: 'General',
+            visibility: 'open',
+            accessType: 'open',
+            description: '',
+            icon: '',
+            createdBy: null,
+            archived: false,
+            archivedAt: null,
+            members: [],
+            createdAt: Date.now,
+            updatedAt: Date.now,
+        }],
     },
     createdAt: {
         type: Date,
@@ -103,5 +116,17 @@ const workspaceSchema = new mongoose.Schema({
         default: Date.now,
     },
 });
+
+// Ensure teamSpace ids are unique within a workspace document
+workspaceSchema.path('teamSpaces').validate(function (teamSpaces: { id?: string }[] | undefined) {
+    if (!Array.isArray(teamSpaces)) return true;
+    const seen = new Set<string>();
+    for (const space of teamSpaces) {
+        if (!space?.id) continue;
+        if (seen.has(space.id)) return false;
+        seen.add(space.id);
+    }
+    return true;
+}, 'Team space ids must be unique within a workspace');
 
 export const Workspace = mongoose.models.Workspace || mongoose.model('Workspace', workspaceSchema);

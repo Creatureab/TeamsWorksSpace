@@ -34,9 +34,10 @@ interface ProjectHeroProps {
 }
 
 export default function ProjectHero({ project, currentWorkspace }: ProjectHeroProps) {
-    const projectTitle = project?.title || "Project";
-    const workspaceName = currentWorkspace?.name || "Workspace";
-    const taskHref = project?._id ? `/project/${project._id}/task` : "#";
+  const projectTitle = project?.title || "Project";
+  const workspaceName = currentWorkspace?.name || "Workspace";
+  const taskHref = project?._id ? `/project/${project._id}/task` : "#";
+  const projectPrivacy = project?.privacy || "Workspace";
 
     return (
         <main className="min-w-0 flex-1 overflow-y-auto bg-white dark:bg-[#0b0f17]">
@@ -75,7 +76,7 @@ export default function ProjectHero({ project, currentWorkspace }: ProjectHeroPr
                         </div>
                         <h1 className="text-3xl font-bold tracking-tight">{projectTitle}</h1>
                     </div>
-                    {project.description && (
+                    {project?.description && (
                         <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-2xl">
                             {project.description}
                         </p>
@@ -113,8 +114,8 @@ export default function ProjectHero({ project, currentWorkspace }: ProjectHeroPr
                                     <Filter className="h-3.5 w-3.5 mr-1.5" />
                                     Filter
                                 </Button>
-                                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                    {project.privacy || "Workspace"}
+                    <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    {projectPrivacy}
                                 </Badge>
                             </div>
                         </div>

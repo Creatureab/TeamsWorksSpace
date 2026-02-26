@@ -1,7 +1,6 @@
 "use client"
 
-import { Editor } from '@/components/editor/Editor';
-import { Block } from '@/components/editor/types';
+import { Editor, Block } from '@editor';
 import { useState, useEffect } from 'react';
 import {
     ImageIcon,

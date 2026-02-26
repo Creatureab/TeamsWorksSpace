@@ -59,11 +59,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import CreateTeamSpaceDialog, { type TeamSpaceVisibility } from "./CreateTeamSpaceDialog";
 import CustomizeWorkspaceDialog, {
   type WorkspaceCustomizationPayload,
 } from "./CustomizeWorkspaceDialog";
+import { useInboxWebSocket } from "@/hooks/useInboxWebSocket";
 
 interface SidebarUser {
   _id?: string | null;
@@ -137,6 +138,8 @@ export default function Sidebar({
   const activeProjectSlug = searchParams.get("project");
   const pathnameParts = pathname.split("/").filter(Boolean);
   const isMySpaceRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "my-space";
+  const isInboxRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "inbox";
+  const isCompanySpaceRoute = pathnameParts[0] === "workspace" && pathnameParts[2] === "company-space";
   const activeTeamSpaceId =
     pathnameParts[0] === "workspace" && pathnameParts[2] === "team-space" && pathnameParts[3]
       ? decodeURIComponent(pathnameParts[3])
@@ -153,6 +156,7 @@ export default function Sidebar({
   const [workspaceType, setWorkspaceType] = useState<"organization" | "personal">(workspaceTypeFromProps);
   const [workspaceSize, setWorkspaceSize] = useState<"1-5" | "6-20" | "21-50" | "50+">(workspaceSizeFromProps);
   const [isCompanySpaceEnabled, setIsCompanySpaceEnabled] = useState(true);
+  const [inboxCount, setInboxCount] = useState<number | null>(null);
 
   useEffect(() => {
     setWorkspaceDisplayName(workspaceNameFromProps);
@@ -203,10 +207,60 @@ export default function Sidebar({
     };
   }, [workspaceId]);
 
+  // Load inbox badge count
+  useEffect(() => {
+    let cancelled = false;
+    const loadInbox = async () => {
+      if (!workspaceId) {
+        setInboxCount(0);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/inbox?workspaceId=${workspaceId}`);
+        if (!res.ok) throw new Error("Failed to load inbox");
+        const data = await res.json();
+        if (!cancelled) setInboxCount(Array.isArray(data.invites) ? data.invites.length : 0);
+      } catch (err) {
+        console.error("Failed to load inbox count", err);
+        if (!cancelled) setInboxCount(null);
+      }
+    };
+    loadInbox();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  // Listen for inbox updates from InboxView
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ count?: number }>).detail;
+      if (detail && typeof detail.count === "number") {
+        setInboxCount(detail.count);
+      }
+    };
+    window.addEventListener("inbox:updated", handler);
+    return () => window.removeEventListener("inbox:updated", handler);
+  }, []);
+
+  const handleWsCount = useCallback(
+    (count: number) => {
+      setInboxCount((prev) => (typeof count === "number" ? count : prev));
+    },
+    [setInboxCount]
+  );
+
+  useInboxWebSocket({
+    email: user?.email,
+    workspaceId,
+    onCount: handleWsCount,
+  });
+
   const initials = getInitial(workspaceDisplayName);
 
   const workspaceHomePath = workspaceId ? `/workspace/${workspaceId}` : "/workspace";
   const mySpacePath = `${workspaceHomePath}/my-space`;
+  const companySpacePath = `${workspaceHomePath}/company-space`;
   const visibleTeamSpaces = teamSpaces.filter((space) => !space.archived);
   const favoriteProjects = projects.slice(0, 4);
   const projectsForTeamSpace = (spaceId: string) => {
@@ -225,11 +279,15 @@ export default function Sidebar({
     ? `team-${activeTeamSpaceId}`
     : isMySpaceRoute
       ? "my-space"
-      : activeProjectSlug
-        ? "favorites"
-        : isHomeActive
-          ? "home"
-          : activeItem;
+      : isCompanySpaceRoute
+        ? "company-space"
+        : isInboxRoute
+          ? "inbox"
+          : activeProjectSlug
+            ? "favorites"
+            : isHomeActive
+              ? "home"
+              : activeItem;
   const isTeamSectionActive =
     Boolean(activeTeamSpaceId) ||
     resolvedActiveItem === "team-spaces" ||
@@ -850,7 +908,10 @@ export default function Sidebar({
                     tooltip="Company Space"
                     isActive={resolvedActiveItem === "company-space"}
                     className={navItemClassName}
-                    onClick={() => setActiveItem("company-space")}
+                    onClick={() => {
+                      setActiveItem("company-space");
+                      router.push(companySpacePath);
+                    }}
                   >
                     <Globe className={iconClassName} />
                     <span>Company Space</span>
@@ -930,14 +991,19 @@ export default function Sidebar({
                   tooltip="Inbox"
                   isActive={resolvedActiveItem === "inbox"}
                   className={navItemClassName}
-                  onClick={() => setActiveItem("inbox")}
+                  onClick={() => {
+                    setActiveItem("inbox");
+                    router.push(`${workspaceHomePath}/inbox`);
+                  }}
                 >
                   <Inbox className={iconClassName} />
                   <span>Inbox</span>
                 </SidebarMenuButton>
-                <SidebarMenuBadge className="right-2 rounded-full bg-blue-100 px-1.5 text-[10px] font-semibold text-blue-700">
-                  3
-                </SidebarMenuBadge>
+                {typeof inboxCount === "number" && inboxCount > 0 ? (
+                  <SidebarMenuBadge className="right-2 rounded-full bg-blue-100 px-1.5 text-[10px] font-semibold text-blue-700">
+                    {inboxCount}
+                  </SidebarMenuBadge>
+                ) : null}
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
