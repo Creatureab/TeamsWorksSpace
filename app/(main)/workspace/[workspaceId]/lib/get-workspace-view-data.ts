@@ -9,6 +9,7 @@ type WorkspaceViewOptions = {
   projectSlug?: string | null;
   teamSpaceId?: string | null;
   mySpace?: boolean;
+  searchQuery?: string | null;
 };
 
 export async function getWorkspaceViewData({
@@ -16,6 +17,7 @@ export async function getWorkspaceViewData({
   projectSlug,
   teamSpaceId,
   mySpace = false,
+  searchQuery,
 }: WorkspaceViewOptions) {
   const user = await syncUser();
   if (!user) redirect("/sign-in");
@@ -65,10 +67,19 @@ export async function getWorkspaceViewData({
   }
 
   const projects = await Project.find(projectQuery).lean();
+  const normalizedSearch = searchQuery?.trim();
+  const searchPredicate = typeof normalizedSearch === "string" && normalizedSearch.length > 0;
+
+  const filteredProjects = searchPredicate
+    ? projects.filter((project) => {
+        const haystack = `${project.title ?? ""} ${project.slug ?? ""} ${project.description ?? ""}`.toLowerCase();
+        return haystack.includes(normalizedSearch.toLowerCase());
+      })
+    : projects;
 
   let activeProject = null;
   if (projectSlug) {
-    activeProject = projects.find((project: { slug?: string }) => project.slug === projectSlug) ?? null;
+    activeProject = filteredProjects.find((project: { slug?: string }) => project.slug === projectSlug) ?? null;
   }
 
   const serializedWorkspaceId = currentWorkspace._id.toString();
@@ -77,13 +88,15 @@ export async function getWorkspaceViewData({
     user: JSON.parse(JSON.stringify(user)),
     workspaces: JSON.parse(JSON.stringify(workspaces)),
     currentWorkspace: JSON.parse(JSON.stringify(currentWorkspace)),
-    projects: JSON.parse(JSON.stringify(projects)),
+    projects: JSON.parse(JSON.stringify(filteredProjects)),
     activeProject: activeProject ? JSON.parse(JSON.stringify(activeProject)) : null,
     context: {
       teamSpaceId: teamSpaceId ?? null,
       mySpace,
       workspaceId: serializedWorkspaceId,
+      searchQuery: normalizedSearch ?? null,
     },
+    searchQuery: normalizedSearch ?? null,
   };
 }
 

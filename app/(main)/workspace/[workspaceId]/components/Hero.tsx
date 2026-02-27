@@ -39,6 +39,7 @@ interface HeroProps {
   projects?: HeroProject[];
   projectBasePath?: string;
   teamSpaceId?: string;
+  searchQuery?: string | null;
 }
 
 const formatActivityTime = (updatedAt?: string) => {
@@ -118,9 +119,16 @@ const recentlyVisited = [
   }
 ];
 
-export default function Hero({ user, currentWorkspace, projects = [] }: HeroProps) {
+export default function Hero({ user, currentWorkspace, projects = [], searchQuery }: HeroProps) {
   const userName = user?.firstName || "there";
   const workspaceName = currentWorkspace?.name || "Workspace";
+  const normalizedSearch = searchQuery?.trim();
+  const hasSearchQuery = Boolean(normalizedSearch);
+  const resultCount = projects.length;
+  const resultLabel = resultCount === 1 ? "result" : "results";
+  const searchMessage = hasSearchQuery
+    ? `Showing ${resultCount} ${resultLabel} for "${normalizedSearch}"`
+    : null;
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-white dark:bg-[#191919]">
@@ -192,10 +200,13 @@ export default function Hero({ user, currentWorkspace, projects = [] }: HeroProp
             <div className="mb-6 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100">
                 <History className="h-5 w-5 text-[#2b6cee]" />
-                Recent Activity
+                {hasSearchQuery ? "Search results" : "Recent Activity"}
               </h2>
               <Badge variant="outline" className="font-medium text-gray-500">Live Updates</Badge>
             </div>
+            {hasSearchQuery && (
+              <p className="mb-6 text-sm text-slate-500">{searchMessage}</p>
+            )}
             {projects.length > 0 ? (
               <div className="space-y-2">
                 {projects.slice(0, 5).map((project) => (
@@ -238,7 +249,11 @@ export default function Hero({ user, currentWorkspace, projects = [] }: HeroProp
                 <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800">
                   <Sparkles className="h-6 w-6 text-gray-300" />
                 </div>
-                <p className="text-sm text-gray-400">No recent activity yet. Start by creating a project!</p>
+                <p className="text-sm text-gray-400">
+                  {hasSearchQuery
+                    ? `No projects matched "${normalizedSearch}". Try another keyword.`
+                    : "No recent activity yet. Start by creating a project!"}
+                </p>
               </Card>
             )}
           </section>

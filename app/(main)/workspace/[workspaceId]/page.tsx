@@ -9,13 +9,14 @@ export default async function WorkspacePage({
   searchParams,
 }: {
   params: Promise<{ workspaceId: string }>;
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<{ project?: string; search?: string }>;
 }) {
   const { workspaceId } = await params;
-  const { project: projectSlug } = await searchParams;
+  const { project: projectSlug, search: searchQuery } = await searchParams;
   const data = await getWorkspaceViewData({
     workspaceId,
     projectSlug,
+    searchQuery,
   });
 
   return (
@@ -39,6 +40,7 @@ export default async function WorkspacePage({
             currentWorkspace={data.currentWorkspace}
             projects={data.projects}
             projectBasePath={`/workspace/${workspaceId}`}
+            searchQuery={data.searchQuery}
           />
         )}
       </div>
