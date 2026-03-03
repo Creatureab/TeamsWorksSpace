@@ -1,5 +1,3 @@
-import { SidebarProvider } from "@/components/ui/sidebar";
-import Sidebar from "../components/Sidebar";
 import { getWorkspaceViewData } from "../lib/get-workspace-view-data";
 import CompanySpace from "../components/CompanySpace";
 import { buildLiveUpdates } from "@/lib/live-updates";
@@ -22,22 +20,14 @@ export default async function CompanySpacePage({
   });
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-[#0b1020] text-slate-50">
-        <Sidebar
-          user={data.user}
-          workspaces={data.workspaces}
-          currentWorkspace={data.currentWorkspace}
-          projects={data.projects}
-        />
-        <CompanySpace
-          workspaceId={workspaceId}
-          workspaceName={data.currentWorkspace?.name ?? "Workspace"}
-          initialUpdates={updates}
-          teamSpaces={(data.currentWorkspace as any)?.teamSpaces ?? []}
-          projectCount={data.projects?.length ?? 0}
-        />
-      </div>
-    </SidebarProvider>
+    <div className="h-full w-full bg-[#0b1020] text-slate-50">
+      <CompanySpace
+        workspaceId={workspaceId}
+        workspaceName={data.currentWorkspace?.name ?? "Workspace"}
+        initialUpdates={updates}
+        teamSpaces={(data.currentWorkspace as any)?.teamSpaces ?? []}
+        projectCount={data.projects?.length ?? 0}
+      />
+    </div>
   );
 }

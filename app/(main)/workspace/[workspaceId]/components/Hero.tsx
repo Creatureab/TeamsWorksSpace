@@ -15,6 +15,7 @@ import {
   Gavel
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -119,8 +120,16 @@ const recentlyVisited = [
 ];
 
 export default function Hero({ user, currentWorkspace, projects = [] }: HeroProps) {
+  const router = useRouter();
   const userName = user?.firstName || "there";
   const workspaceName = currentWorkspace?.name || "Workspace";
+
+  const workspaceId = currentWorkspace?._id;
+
+  const handleCreateProject = () => {
+    if (!workspaceId) return;
+    router.push(`/project/create?workspaceId=${encodeURIComponent(workspaceId)}`);
+  };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-white dark:bg-[#191919]">
@@ -133,12 +142,14 @@ export default function Hero({ user, currentWorkspace, projects = [] }: HeroProp
             <span className="font-medium text-gray-900 dark:text-gray-100">{workspaceName}</span>
           </div>
         </div>
-        <Link href={`/createProject?name=${encodeURIComponent(workspaceName)}&workspaceId=${currentWorkspace?._id}`}>
-          <Button size="sm" className="bg-[#2b6cee] hover:bg-[#2b6cee]/90 text-xs h-8">
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            New Project
-          </Button>
-        </Link>
+        <Button
+          size="sm"
+          className="bg-[#2b6cee] hover:bg-[#2b6cee]/90 text-xs h-8"
+          onClick={handleCreateProject}
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          New Project
+        </Button>
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-12">

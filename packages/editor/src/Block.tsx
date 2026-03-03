@@ -183,6 +183,8 @@ export const Block = ({
         }
     };
 
+    const contentEl = renderContent();
+
     return (
         <div
             className={cn(
@@ -211,7 +213,7 @@ export const Block = ({
             )}
 
             <div className="w-full">
-                {renderContent()}
+                {contentEl}
             </div>
         </div>
     );

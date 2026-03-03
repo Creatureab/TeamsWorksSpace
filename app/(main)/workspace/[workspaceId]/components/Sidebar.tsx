@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  Database,
   Globe,
   Home,
   Inbox,
@@ -161,6 +162,35 @@ export default function Sidebar({
   const [inboxCount, setInboxCount] = useState<number | null>(null);
   const [quickFindValue, setQuickFindValue] = useState("");
   const [favoriteSlugs, setFavoriteSlugs] = useState<string[]>([]);
+  const [pageHierarchy, setPageHierarchy] = useState<any[]>([]);
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+
+  const refreshPages = useCallback(async () => {
+    if (!workspaceId) {
+      setPageHierarchy([]);
+      return;
+    }
+
+    setIsLoadingPages(true);
+    try {
+      const params = new URLSearchParams({ workspaceId });
+      if (activeTeamSpaceId) params.set("teamSpaceId", activeTeamSpaceId);
+
+      const response = await fetch(`/api/pages?${params.toString()}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) throw new Error("Failed to load pages");
+      const data = await response.json();
+      setPageHierarchy(Array.isArray(data.hierarchy) ? data.hierarchy : []);
+    } catch (error) {
+      console.error("Failed to load pages:", error);
+      setPageHierarchy([]);
+    } finally {
+      setIsLoadingPages(false);
+    }
+  }, [workspaceId, activeTeamSpaceId]);
 
   useEffect(() => {
     setWorkspaceDisplayName(workspaceNameFromProps);
@@ -210,6 +240,17 @@ export default function Sidebar({
       cancelled = true;
     };
   }, [workspaceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (cancelled) return;
+      await refreshPages();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshPages]);
 
   // Load inbox badge count
   useEffect(() => {
@@ -302,12 +343,190 @@ export default function Sidebar({
     visibleTeamSpaces.some((space) => resolvedActiveItem === `team-${space.id}`);
   const showFavoritesSection = isFavoritesExpanded || Boolean(activeProjectSlug);
 
+  const getPageUrl = (pathSegments: string[]) => {
+    const basePath = activeTeamSpaceId ? getTeamSpacePath(activeTeamSpaceId) : workspaceHomePath;
+    const cleanBase = basePath.replace(/\/$/, "");
+    const path = Array.isArray(pathSegments) ? pathSegments.join("/") : "";
+    return path ? `${cleanBase}/page/${path}` : cleanBase;
+  };
+
+  const getProjectsDbUrl = () => {
+    if (!workspaceId) return "/workspace";
+    if (activeTeamSpaceId) {
+      return `${getTeamSpacePath(activeTeamSpaceId)}/database/projects`;
+    }
+    return `${workspaceHomePath}/database/projects`;
+  };
+
   const getTeamSpacePath = (
     spaceId: string,
     section?: "settings" | "members" | "permissions"
   ) => {
     const basePath = `${workspaceHomePath}/team-space/${encodeURIComponent(spaceId)}`;
     return section ? `${basePath}/${section}` : basePath;
+  };
+
+  interface SidebarPageNode {
+    page: {
+      _id?: string;
+      id?: string;
+      title?: string | null;
+      path?: string[];
+    };
+    children: SidebarPageNode[];
+  }
+
+  interface SidebarPageTreeItemProps {
+    node: SidebarPageNode;
+    level: number;
+    getPageUrl: (pathSegments: string[]) => string;
+    currentPathname: string;
+    onNavigate: (href: string) => void;
+    onCreateChild: (parentId: string) => void;
+    onRename: (pageId: string, currentTitle?: string | null) => void;
+    onDelete: (pageId: string) => void;
+  }
+
+  const SidebarPageTreeItem = ({
+    node,
+    level,
+    getPageUrl,
+    currentPathname,
+    onNavigate,
+    onCreateChild,
+    onRename,
+    onDelete,
+  }: SidebarPageTreeItemProps) => {
+    const [isExpanded, setIsExpanded] = useState(level < 1);
+    const [isHovered, setIsHovered] = useState(false);
+    const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+    const pathSegments = Array.isArray(node.page.path) ? node.page.path : [];
+    const pageId = node.page._id ?? node.page.id ?? "";
+    const href = getPageUrl(pathSegments);
+    const isActive = currentPathname === href || currentPathname.startsWith(`${href}/`);
+
+    return (
+      <div>
+        <div
+          className={cn(
+            "group flex cursor-pointer items-center rounded-md px-2 py-1 pr-1 text-[12px] text-slate-600 hover:bg-slate-200/60 hover:text-slate-900",
+            isActive ? "bg-slate-300 text-slate-900" : ""
+          )}
+          style={{ paddingLeft: `${level * 12 + 8}px` }}
+          onClick={() => onNavigate(href)}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          {hasChildren ? (
+            <button
+              type="button"
+              className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded text-slate-400 hover:bg-slate-200"
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsExpanded((open) => !open);
+              }}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+            </button>
+          ) : (
+            <span className="mr-1 inline-block h-4 w-4" />
+          )}
+
+          <span className="truncate">{node.page.title || "Untitled"}</span>
+
+          <div
+            className={cn(
+              "ml-auto flex items-center gap-1",
+              isHovered ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}
+          >
+            <button
+              type="button"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+              aria-label="Create sub-page"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!pageId) return;
+                onCreateChild(pageId);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                  aria-label="Page actions"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                side="right"
+                sideOffset={8}
+                className="w-48 rounded-xl border-slate-200/90 bg-white p-1.5 shadow-lg"
+              >
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!pageId) return;
+                    onRename(pageId, node.page.title);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (!pageId) return;
+                    onCreateChild(pageId);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New sub-page
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    if (!pageId) return;
+                    onDelete(pageId);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {hasChildren && isExpanded && (
+          <div className="space-y-0.5">
+            {node.children.map((child) => (
+              <SidebarPageTreeItem
+                key={child.page._id ?? child.page.id}
+                node={child}
+                level={level + 1}
+                getPageUrl={getPageUrl}
+                currentPathname={currentPathname}
+                onNavigate={onNavigate}
+                onCreateChild={onCreateChild}
+                onRename={onRename}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const getProjectContextPath = () => {
@@ -627,6 +846,51 @@ export default function Sidebar({
 
   const isFavorite = (slug: string) => favoriteSlugs.includes(slug);
 
+  const handleGlobalNewPage = async () => {
+    if (!workspaceId) return;
+
+    const title = window.prompt("Page title");
+    const normalizedTitle = title?.trim();
+    if (!normalizedTitle) return;
+
+    try {
+      const response = await fetch("/api/pages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: normalizedTitle,
+          workspaceId,
+          teamSpaceId: activeTeamSpaceId ?? undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create page");
+      }
+
+      const { page } = await response.json();
+      const basePath = activeTeamSpaceId
+        ? `/workspace/${workspaceId}/team-space/${encodeURIComponent(activeTeamSpaceId)}`
+        : workspaceHomePath;
+      const pagePath = Array.isArray(page.path) ? page.path.join("/") : "";
+
+      if (pagePath) {
+        router.push(
+          activeTeamSpaceId
+            ? `${basePath}/page/${pagePath}`
+            : `${basePath.replace(/\/$/, "")}/page/${pagePath}`
+        );
+      } else {
+        router.push(basePath);
+      }
+
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to create page:", error);
+      window.alert("Could not create page. Please try again.");
+    }
+  };
+
   const handleQuickFindSubmit = () => {
     const query = quickFindValue.trim();
     if (!query) return;
@@ -637,6 +901,85 @@ export default function Sidebar({
   const navItemClassName =
     "h-9 rounded-lg px-2.5 text-[13px] font-medium text-slate-700 transition-colors duration-150 hover:bg-slate-200/60 data-[active=true]:bg-slate-300 data-[active=true]:text-slate-900";
   const iconClassName = "h-3.5 w-3.5 text-slate-500";
+
+  const handleCreatePageAt = async (parentId?: string) => {
+    if (!workspaceId) return;
+    const title = window.prompt("Page title");
+    const normalizedTitle = title?.trim();
+    if (!normalizedTitle) return;
+
+    try {
+      const response = await fetch("/api/pages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: normalizedTitle,
+          workspaceId,
+          teamSpaceId: activeTeamSpaceId ?? undefined,
+          parentId: parentId ?? undefined,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to create page");
+      const { page } = await response.json();
+      const pathSegments = Array.isArray(page?.path) ? page.path : [];
+      if (pathSegments.length) {
+        router.push(getPageUrl(pathSegments));
+      }
+      toast.success("Page created");
+      await refreshPages();
+    } catch (error) {
+      console.error("Failed to create page:", error);
+      toast.error("Failed to create page");
+    }
+  };
+
+  const handleRenamePage = async (pageId: string, currentTitle?: string | null) => {
+    const nextTitle = window.prompt("Rename page", currentTitle ?? "");
+    const normalizedTitle = nextTitle?.trim();
+    if (!normalizedTitle) return;
+
+    try {
+      const response = await fetch(`/api/pages/${encodeURIComponent(pageId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: normalizedTitle }),
+      });
+      if (!response.ok) throw new Error("Failed to rename page");
+      const data = await response.json();
+      toast.success("Renamed");
+      await refreshPages();
+
+      const updated = data?.page;
+      if (updated?.path && Array.isArray(updated.path)) {
+        const updatedHref = getPageUrl(updated.path);
+        const current = pathname;
+        if (current === getPageUrl((updated as any).path) || current.includes(pageId)) {
+          router.replace(updatedHref);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to rename page:", error);
+      toast.error("Failed to rename");
+    }
+  };
+
+  const handleDeletePage = async (pageId: string) => {
+    if (!window.confirm("Delete this page and all its children?")) return;
+
+    try {
+      const response = await fetch(`/api/pages/${encodeURIComponent(pageId)}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete page");
+      toast.success("Deleted");
+      await refreshPages();
+      router.push(activeTeamSpaceId ? getTeamSpacePath(activeTeamSpaceId) : workspaceHomePath);
+    } catch (error) {
+      console.error("Failed to delete page:", error);
+      toast.error("Failed to delete");
+    }
+  };
 
   return (
     <ShadcnSidebar
@@ -846,17 +1189,49 @@ export default function Sidebar({
                   <Users className={iconClassName} />
                   <span>Team Spaces</span>
                   <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:hidden">
-                    <button
-                      type="button"
-                      aria-label="Create Team Space"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setIsCreateTeamSpaceOpen(true);
-                      }}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Create"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              // Radix will handle the actual open on click/keyboard activation
+                              (event.currentTarget as HTMLElement).click();
+                            }
+                          }}
+                          className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </span>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        side="right"
+                        sideOffset={8}
+                        className="w-56 rounded-xl border-slate-200/90 bg-white p-1.5 shadow-lg"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {activeTeamSpaceId ? (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              handleCreatePageAt();
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                            New page in this team space
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem onClick={() => setIsCreateTeamSpaceOpen(true)}>
+                          <Users className="h-4 w-4" />
+                          New team space
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {isTeamExpanded ? (
                       <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                     ) : (
@@ -884,20 +1259,16 @@ export default function Sidebar({
                               setActiveItem(`team-${space.id}`);
                               router.push(getTeamSpacePath(space.id));
                             }}
-
                             className={cn(
-                              "h-8 rounded-lg pr-9 text-[12px] text-slate-600 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
+                              "h-8 rounded-lg pr-9 text-[12px] font-medium text-slate-700 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
                               resolvedActiveItem === `team-${space.id}` ? "bg-slate-300 text-slate-900" : "",
-                              !space.isMember && space.accessType === 'closed' ? "opacity-60 grayscale-[0.5]" : ""
+                              !space.isMember && space.accessType === "closed" ? "opacity-60 grayscale-[0.5]" : ""
                             )}
                           >
-                            <span className={cn(
-                              "h-1.5 w-1.5 rounded-full transition-colors",
-                              space.isMember ? "bg-slate-600" : "bg-slate-400"
-                            )} />
+                            <Users className="h-3.5 w-3.5 text-slate-500" />
                             <span className="truncate flex items-center gap-1.5">
                               {space.name}
-                              {!space.isMember && space.accessType === 'closed' && (
+                              {!space.isMember && space.accessType === "closed" && (
                                 <Lock className="h-2.5 w-2.5 text-slate-400" />
                               )}
                             </span>
@@ -913,58 +1284,55 @@ export default function Sidebar({
                           )}
 
 
-                          {space.canAccess && (
-                            <div className="ml-4 mt-1 space-y-0.5 pr-8">
-                              <p className="px-2 text-[10px] font-semibold text-slate-500">Projects</p>
-                              {projectsForTeamSpace(space.id).length > 0 ? (
-                                projectsForTeamSpace(space.id).map((project) => (
-                                  <button
-                                    key={project._id}
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveItem(`team-${space.id}`);
-                                      router.push(
-                                        `${getTeamSpacePath(space.id)}?project=${encodeURIComponent(project.slug)}`
-                                      );
-                                    }}
-                                    className={cn(
-                                      "relative flex h-7 w-full items-center gap-2 rounded-md px-2 pr-8 text-left text-[12px] text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-900",
-                                      activeTeamSpaceId === space.id && activeProjectSlug === project.slug
-                                        ? "bg-slate-300 text-slate-900"
-                                        : ""
-                                    )}
-                                  >
-                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                                    <span className="truncate">{project.title}</span>
-                                    <span
-                                      role="button"
-                                      tabIndex={0}
-                                      aria-label={isFavorite(project.slug) ? "Remove favorite" : "Add favorite"}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        toggleFavorite(project.slug);
-                                      }}
-                                      onKeyDown={(event) => {
-                                        if (event.key === "Enter" || event.key === " ") {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          toggleFavorite(project.slug);
-                                        }
-                                      }}
-                                      className="absolute right-1.5 inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
-                                    >
-                                      <Star
-                                        className={cn(
-                                          "h-3.5 w-3.5",
-                                          isFavorite(project.slug) ? "text-amber-500" : "text-slate-400"
-                                        )}
-                                        fill={isFavorite(project.slug) ? "currentColor" : "none"}
-                                      />
-                                    </span>
-                                  </button>
-                                ))
+                          {space.canAccess && null}
+
+                          {space.canAccess && space.id === activeTeamSpaceId && (
+                            <div className="ml-4 mt-2 space-y-0.5 pr-8">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveItem(`team-${space.id}`);
+                                  router.push(getProjectsDbUrl());
+                                }}
+                                className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[12px] font-medium text-slate-600 transition-colors hover:bg-slate-200/60 hover:text-slate-900"
+                              >
+                                <Database className="h-3.5 w-3.5 text-slate-500" />
+                                <span className="truncate">Projects</span>
+                              </button>
+                              <div className="flex items-center justify-between px-2">
+                                <p className="text-[10px] font-semibold text-slate-500">Pages</p>
+                                <button
+                                  type="button"
+                                  aria-label="Create page in this team space"
+                                  onClick={() => handleCreatePageAt()}
+                                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              {isLoadingPages ? (
+                                <p className="px-2 py-1 text-[11px] text-slate-400">Loading pages...</p>
+                              ) : pageHierarchy.length === 0 ? (
+                                <p className="px-2 py-1 text-[11px] text-slate-400">No pages yet</p>
                               ) : (
-                                <p className="px-2 py-1 text-[11px] text-slate-400">No projects assigned</p>
+                                <div className="space-y-0.5">
+                                  {pageHierarchy.map((node: SidebarPageNode) => (
+                                    <SidebarPageTreeItem
+                                      key={node.page._id ?? node.page.id}
+                                      node={node}
+                                      level={0}
+                                      getPageUrl={getPageUrl}
+                                      currentPathname={pathname}
+                                      onNavigate={(href) => {
+                                        setActiveItem(`team-${space.id}`);
+                                        router.push(href);
+                                      }}
+                                      onCreateChild={(parentId) => handleCreatePageAt(parentId)}
+                                      onRename={(pageId, title) => handleRenamePage(pageId, title)}
+                                      onDelete={(pageId) => handleDeletePage(pageId)}
+                                    />
+                                  ))}
+                                </div>
                               )}
                             </div>
                           )}
@@ -1099,6 +1467,53 @@ export default function Sidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {!activeTeamSpaceId && (
+          <SidebarGroup className="mt-3 p-0">
+            <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-slate-500">
+              Pages
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="mb-2 px-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveItem("home");
+                    router.push(getProjectsDbUrl());
+                  }}
+                  className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-200/60 hover:text-slate-900"
+                >
+                  <Database className="h-3.5 w-3.5 text-slate-500" />
+                  <span className="truncate">Projects</span>
+                </button>
+              </div>
+              <div className="space-y-0.5 rounded-lg bg-slate-50/80 px-1.5 py-1.5">
+                {isLoadingPages ? (
+                  <p className="px-2 py-1 text-[11px] text-slate-400">Loading pages...</p>
+                ) : pageHierarchy.length === 0 ? (
+                  <p className="px-2 py-1 text-[11px] text-slate-400">No pages yet</p>
+                ) : (
+                  pageHierarchy.map((node: SidebarPageNode) => (
+                    <SidebarPageTreeItem
+                      key={node.page._id ?? node.page.id}
+                      node={node}
+                      level={0}
+                      getPageUrl={getPageUrl}
+                      currentPathname={pathname}
+                      onNavigate={(href) => {
+                        setActiveItem("home");
+                        router.push(href);
+                      }}
+                      onCreateChild={(parentId) => handleCreatePageAt(parentId)}
+                      onRename={(pageId, title) => handleRenamePage(pageId, title)}
+                      onDelete={(pageId) => handleDeletePage(pageId)}
+                    />
+                  ))
+                )}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarSeparator className="my-3 bg-slate-200/80" />
 
         <SidebarGroup className="p-0">
@@ -1165,7 +1580,7 @@ export default function Sidebar({
                 <Button
                   type="button"
                   className="h-9 w-full justify-start rounded-lg bg-slate-800 px-3 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-700"
-                  onClick={() => router.push(`${workspaceHomePath}?newPage=true`)}
+                  onClick={handleGlobalNewPage}
                 >
                   <Plus className="mr-2 h-3.5 w-3.5" />
                   New page
